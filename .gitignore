@@ -34,3 +34,6 @@ yarn-error.json
 
 # Optional
 *.local
+
+# Unnecessary files
+assets/*.*
