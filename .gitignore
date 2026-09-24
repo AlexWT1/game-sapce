@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+tsconfig.tsbuildinfo
+
+# Rust / Cargo
+src-tauri/target/
+
+# Tauri generated
+src-tauri/gen/schemas/
+
+# Logs
+*.log
+logs/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Package manager
+.pnpm-debug.log*
+yarn-error.json
+
+# Optional
+*.local
