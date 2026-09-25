@@ -120,10 +120,22 @@ jobs:
           } > release-notes.md
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: release-notes.md
-          files: |
-            bundles/**/*
-          fail_on_unmatched_files: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' FILES < <(find bundles -type f -print0)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No bundle files found" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes
+          fi
+          ARGS=(--verify-tag --title "$TAG" --notes-file release-notes.md)
+          if [[ "$TAG" == *-* ]]; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${ARGS[@]}" "${FILES[@]}"
