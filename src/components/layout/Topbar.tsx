@@ -38,7 +38,10 @@ export function Topbar() {
   }, [notifOpen, setNotifOpen]);
 
   return (
-    <header className="relative z-30 h-[var(--topbar-height)] shrink-0 border-b border-white/8 bg-[#0a0c18]/70 backdrop-blur-xl flex items-center gap-3 px-4">
+    <header
+      data-tauri-drag-region="deep"
+      className="relative z-30 h-[var(--topbar-height)] shrink-0 border-b border-white/8 bg-[#0a0c18]/70 backdrop-blur-xl flex items-center gap-3 px-4"
+    >
       <button
         onClick={toggleSidebar}
         className="h-9 w-9 grid place-items-center rounded-lg text-muted hover:text-ink hover:bg-white/8 transition"
@@ -80,7 +83,10 @@ export function Topbar() {
             )}
           </button>
           {notifOpen && (
-            <div className="absolute right-0 top-11 w-80 max-h-96 overflow-y-auto rounded-xl border border-white/10 bg-[#12152b]/95 backdrop-blur-xl shadow-2xl p-2 z-50">
+            <div
+              data-tauri-drag-region="false"
+              className="absolute right-0 top-11 w-80 max-h-96 overflow-y-auto rounded-xl border border-white/10 bg-[#12152b]/95 backdrop-blur-xl shadow-2xl p-2 z-50"
+            >
               {notifications.length === 0 ? (
                 <p className="text-[13px] text-dim text-center py-6">{t("common.nothing")}</p>
               ) : (
