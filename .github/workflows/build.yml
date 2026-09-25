@@ -77,7 +77,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bundles-${{ runner.os }}
-          path: src-tauri/target/release/bundle/
+          path: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
           if-no-files-found: error
 
   release:
@@ -126,7 +131,9 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          mapfile -d '' FILES < <(find bundles -type f -print0)
+          mapfile -d '' FILES < <(find bundles -type f \
+            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
+               -o -name '*.msi' -o -name '*.exe' \) -print0)
           if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No bundle files found" >&2
             exit 1
