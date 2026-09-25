@@ -18,3 +18,12 @@
 - **ПУШ ТОЛЬКО В `dev`.**
 - **ЗАПРЕЩЕНО** делать merge ветки `main`, merge `main` → `dev`, merge `dev` → `main`,
   а также любые пуши в `main`. Ветка `main` не трогается.
+
+## Релизы (GitHub Releases)
+- Релиз создаёт workflow `.github/workflows/build.yml` автоматически по тегу `vX.Y.Z`
+  (тег аннотированный: `git tag -a vX.Y.Z -m "Описание релиза"`).
+- Тело релиза = аннотация тега + коммиты с предыдущего тега.
+- В описание релиза попадают **только** префиксы `fix`, `update`, `add`, `remove`,
+  причём текст берётся **без префикса**:
+  `update: new logic automaticaly fined games` → `new logic automaticaly fined games`.
+- Префиксы `new`, `tool` и коммиты без префикса в описание релиза **не** попадают.

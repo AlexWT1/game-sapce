@@ -113,7 +113,8 @@ jobs:
             PREV="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
             if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
             git log --pretty=format:'- %s (%h)' "$RANGE" \
-              | grep -iE '^- (fix|update|remove|delete|add|new|tool):' \
+              | grep -iE '^- (fix|update|add|remove):' \
+              | sed -E 's/^- [^:]+: */- /' \
               || printf '%s\n' "_No matching commits._"
             printf '\n'
           } > release-notes.md
