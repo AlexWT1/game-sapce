@@ -65,16 +65,23 @@ pub fn select_any_file(app: AppHandle) -> AppResult<Option<String>> {
 }
 
 #[tauri::command]
-pub fn discover_games(dirs: Vec<String>) -> AppResult<Vec<DiscoveredGame>> {
+pub fn discover_games(state: State<'_, AppState>, dirs: Vec<String>) -> AppResult<Vec<DiscoveredGame>> {
     let dirs = if dirs.is_empty() {
-        crate::game::launcher::default_game_dirs()
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect()
+        let configured = state
+            .db
+            .with(|conn| super::settings::read_setting(conn, "default_games_dir").map_err(Into::into))?
+            .filter(|d| !d.trim().is_empty());
+        match configured {
+            Some(dir) => vec![dir],
+            None => crate::game::launcher::default_game_dirs()
+                .iter()
+                .map(|p| p.to_string_lossy().to_string())
+                .collect(),
+        }
     } else {
         dirs
     };
-    log::info!("Discovering games in {} dirs", dirs.len());
+    log::info!("Discovering games in {} dirs: {dirs:?}", dirs.len());
     Ok(discovery::discover(&dirs))
 }
 

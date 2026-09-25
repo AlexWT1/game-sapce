@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 import { FolderPlus, Gamepad2, Rocket, Sparkles, Check } from "lucide-react";
 import { useT } from "@/hooks/useT";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { useGamesStore } from "@/stores/gamesStore";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/services/api";
+import { scanForGames } from "@/services/discovery";
 import { useUiStore } from "@/stores/uiStore";
 import { cx } from "@/utils/format";
 
@@ -14,13 +14,20 @@ const STEPS = 4;
 export function Onboarding() {
   const t = useT();
   const [step, setStep] = useState(1);
-  const [dirs, setDirs] = useState<string[]>([]);
+  const defaultDir = useSettingsStore((s) => s.defaultGamesDir);
+  const [dirs, setDirs] = useState<string[]>(() => (defaultDir ? [defaultDir] : []));
   const [scanning, setScanning] = useState(false);
   const [found, setFound] = useState<number>(0);
-  const setOnboarding = useSettingsStore((s) => s.set);
+  const setSettings = useSettingsStore((s) => s.set);
   const pushToast = useUiStore((s) => s.pushToast);
 
-  const finish = () => setOnboarding({ onboardingDone: true });
+  const finish = () => {
+    setSettings({ onboardingDone: true });
+    if (dirs[0] && dirs[0] !== defaultDir) {
+      setSettings({ defaultGamesDir: dirs[0] });
+      void api.updateSettings({ default_games_dir: dirs[0] }).catch(() => {});
+    }
+  };
 
   const addDir = async () => {
     try {
@@ -34,27 +41,8 @@ export function Onboarding() {
   const scan = async () => {
     setScanning(true);
     try {
-      const discovered = await api.discoverGames(dirs);
-      setFound(discovered.length);
-      let added = 0;
-      for (const d of discovered.slice(0, 20)) {
-        try {
-          const exists = await api.gameExists(d.title);
-          if (!exists) {
-            await useGamesStore.getState().create({
-              title: d.title,
-              executablePath: d.path,
-              installPath: d.installDir,
-              platform: d.platform,
-              isInstalled: true,
-            });
-            added += 1;
-          }
-        } catch {
-          /* skip failed */
-        }
-      }
-      await useGamesStore.getState().load(true);
+      const { found, added } = await scanForGames(dirs);
+      setFound(found);
       if (added > 0) {
         pushToast({ kind: "success", title: `${t("common.add")}: ${added}` });
       }
@@ -132,7 +120,9 @@ export function Onboarding() {
             <h2 className="text-xl font-bold text-ink">{t("onboarding.auto")}</h2>
             <p className="text-sm text-muted">{t("onboarding.autoHint")}</p>
             {found > 0 && (
-              <p className="text-sm text-emerald-400">Найдено: {found}</p>
+              <p className="text-sm text-emerald-400">
+                {t("settings.found")}: {found}
+              </p>
             )}
             <div className="flex gap-2 pt-2">
               <Button

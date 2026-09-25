@@ -8,6 +8,7 @@ import {
   Monitor,
   Palette,
   RotateCcw,
+  Search,
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ import { useT } from "@/hooks/useT";
 import { useSettingsStore, applyVisualPreferences, type AccentColor, type ThemeMode } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { api } from "@/services/api";
+import { scanForGames } from "@/services/discovery";
 import { LOCALES, type Locale } from "@/i18n";
 import type { AppInfo, SettingsMap } from "@/types";
 
@@ -28,6 +30,7 @@ export function SettingsPage() {
   const askConfirm = useUiStore((s) => s.askConfirm);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     void api.getAppInfo().then(setInfo).catch(() => setInfo(null));
@@ -91,12 +94,32 @@ export function SettingsPage() {
       },
     });
 
+  const runScan = async (dirs?: string[]) => {
+    setScanning(true);
+    try {
+      const target = dirs ?? (local.defaultGamesDir ? [local.defaultGamesDir] : []);
+      const { found, added } = await scanForGames(target);
+      pushToast({
+        kind: added > 0 ? "success" : "info",
+        title: t("settings.scanDone"),
+        body: `${t("settings.found")}: ${found} · ${t("settings.added")}: ${added}`,
+      });
+    } catch (e) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const pickDir = async () => {
     try {
       const dir = await api.selectGameDirectory();
       if (dir) {
         local.set({ defaultGamesDir: dir });
         await persistBackend({ default_games_dir: dir });
+        if (local.autoDetect) {
+          void runScan([dir]);
+        }
       }
     } catch (e) {
       pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
@@ -251,8 +274,23 @@ export function SettingsPage() {
               onChange={(v) => {
                 local.set({ autoDetect: v });
                 void persistBackend({ auto_detect: v });
+                if (v && local.defaultGamesDir) void runScan([local.defaultGamesDir]);
               }}
             />
+          }
+        />
+        <Row
+          label={t("settings.scanNow")}
+          control={
+            <Button
+              size="sm"
+              variant="outline"
+              loading={scanning}
+              icon={<Search className="h-3.5 w-3.5" />}
+              onClick={() => void runScan()}
+            >
+              {t("settings.scanNow")}
+            </Button>
           }
         />
         <Row
