@@ -110,16 +110,17 @@ jobs:
         run: |
           set -euo pipefail
           {
-            MSG="$(git tag -l --format='%(contents:body)' "$TAG" | sed -e 's/\r$//')"
+            MSG="$(git tag -l --format='%(contents)' "$TAG" | sed -e 's/\r$//')"
             if [ -n "$MSG" ]; then
               printf '%s\n\n' "$MSG"
             fi
-            printf '## Commits\n\n'
+            printf '## Changelog\n\n'
             PREV="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
             if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
             git log --pretty=format:'- %s (%h)' "$RANGE" \
               | grep -iE '^- (fix|update|add|remove):' \
-              | sed -E 's/^- [^:]+: */- /' \
+              | sed -E -e 's/^- fix:/🐛/I' -e 's/^- update:/🔄/I' \
+                       -e 's/^- add:/✨/I' -e 's/^- remove:/🗑️/I' \
               || printf '%s\n' "_No matching commits._"
             printf '\n'
           } > release-notes.md

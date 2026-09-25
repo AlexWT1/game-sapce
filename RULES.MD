@@ -22,8 +22,10 @@
 ## Релизы (GitHub Releases)
 - Релиз создаёт workflow `.github/workflows/build.yml` автоматически по тегу `vX.Y.Z`
   (тег аннотированный: `git tag -a vX.Y.Z -m "Описание релиза"`).
-- Тело релиза = аннотация тега + коммиты с предыдущего тега.
-- В описание релиза попадают **только** префиксы `fix`, `update`, `add`, `remove`,
-  причём текст берётся **без префикса**:
-  `update: new logic automaticaly fined games` → `new logic automaticaly fined games`.
-- Префиксы `new`, `tool` и коммиты без префикса в описание релиза **не** попадают.
+- Тело релиза = полная аннотация тега + раздел `## Changelog` с коммитами
+  с предыдущего тега.
+- В Changelog попадают **только** типы `fix`, `update`, `add`, `remove`; префикс
+  заменяется на эмодзи, хеш коммита остаётся:
+  `update: new logic automaticaly fined games` → `🔄 new logic automaticaly fined games (abc1234)`.
+- Эмодзи: `fix` → 🐛, `add` → ✨, `update` → 🔄, `remove` → 🗑️.
+- Типы `new`, `tool` и коммиты без префикса в Changelog **не** попадают.
