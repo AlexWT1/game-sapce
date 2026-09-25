@@ -26,8 +26,8 @@
 ## Релизы (GitHub Releases)
 - Релиз создаёт workflow `.github/workflows/build.yml` автоматически по тегу `vX.Y.Z`
   (тег аннотированный: `git tag -a vX.Y.Z -m "Описание релиза"`).
-- Тело релиза = полная аннотация тега + раздел `## Changelog` с коммитами
-  с предыдущего тега.
+- Заголовок релиза = имя тега (например, `v0.1.0`). Тело релиза начинается сразу
+  с раздела `## Changelog` — аннотация тега и любой доп. текст сверху не выводятся.
 - В Changelog попадают **только** типы `fix`, `update`, `add`, `remove`; префикс
   заменяется на эмодзи, хеш коммита остаётся:
   `update: new logic automaticaly fined games` → `🔄 new logic automaticaly fined games (abc1234)`.

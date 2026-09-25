@@ -107,10 +107,6 @@ jobs:
         run: |
           set -euo pipefail
           {
-            MSG="$(git tag -l --format='%(contents)' "$TAG" | sed -e 's/\r$//')"
-            if [ -n "$MSG" ]; then
-              printf '%s\n\n' "$MSG"
-            fi
             printf '## Changelog\n\n'
             PREV="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
             if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
