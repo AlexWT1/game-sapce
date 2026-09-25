@@ -12,6 +12,11 @@ pub const MENU_QUIT: &str = "quit";
 pub const MENU_SESSION: &str = "session-info";
 
 pub fn setup(app: &AppHandle) -> tauri::Result<()> {
+    if app.tray_by_id("main").is_some() {
+        log::warn!("Tray icon already exists, skipping creation");
+        return Ok(());
+    }
+
     let open = MenuItem::with_id(app, MENU_OPEN, "Открыть Game Space", true, None::<&str>)?;
     let continue_item =
         MenuItem::with_id(app, MENU_CONTINUE, "Продолжить игру", true, None::<&str>)?;
