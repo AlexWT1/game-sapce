@@ -478,22 +478,35 @@ async fn fetch_steam_meta(
     };
 
     let cover = if needs_cover {
-        let mut urls = api::cover_candidates(appid);
         if let Some(details) = &details {
             if !details.header_image.is_empty() {
-                urls.push(details.header_image.clone());
+                CoverChoice::Url(details.header_image.clone())
+            } else {
+                let urls = api::cover_candidates(appid);
+                let mut resolved = None;
+                for url in urls {
+                    if client.url_exists(&url).await {
+                        resolved = Some(url);
+                        break;
+                    }
+                }
+                resolved
+                    .map(CoverChoice::Url)
+                    .unwrap_or(CoverChoice::Placeholder)
             }
-        }
-        let mut resolved = None;
-        for url in urls {
-            if client.url_exists(&url).await {
-                resolved = Some(url);
-                break;
+        } else {
+            let urls = api::cover_candidates(appid);
+            let mut resolved = None;
+            for url in urls {
+                if client.url_exists(&url).await {
+                    resolved = Some(url);
+                    break;
+                }
             }
+            resolved
+                .map(CoverChoice::Url)
+                .unwrap_or(CoverChoice::Placeholder)
         }
-        resolved
-            .map(CoverChoice::Url)
-            .unwrap_or(CoverChoice::Placeholder)
     } else {
         CoverChoice::Keep
     };
