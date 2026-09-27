@@ -8,7 +8,7 @@ Game Space — кросс-платформенный десктопный лау
 
 ## Стек
 - **Backend**: Tauri 2 + Rust 2021. `rusqlite` (bundled SQLite, WAL), `thiserror`/`anyhow`,
-  `sysinfo`, `walkdir`, `chrono`, `log` + самописный FileLogger; фичи `tray-icon`, `image-png`;
+  `sysinfo`, `chrono`, `log` + самописный FileLogger; фичи `tray-icon`, `image-png`;
   плагины: `tauri-plugin-dialog`, `tauri-plugin-single-instance`.
 - **Frontend**: React 19, TypeScript 5.8 (strict, `noUncheckedIndexedAccess`), Vite 6,
   Tailwind CSS 4, Zustand (+persist), Framer Motion, Recharts, Lucide icons,
@@ -20,7 +20,7 @@ Game Space — кросс-платформенный десктопный лау
 - `src-tauri/src/` — Rust: `lib.rs` (Builder: плагины → setup: logger → БД → seed → tray →
   монитор; `on_window_event` (drag&drop); `invoke_handler`), `commands/{games,launch,achievements,settings,stats,system}`,
   `database/`, `game/{launcher,achievements,seed,theme}`, `process/monitor`, `tray/`,
-  `services/{discovery,export}`, `models` (все DTO с `#[serde(rename_all="camelCase")]`),
+  `services/{export,placeholder}`, `models` (все DTO с `#[serde(rename_all="camelCase")]`),
   `error` (`AppError` сериализуется фронтенду как plain string).
 - `src/` — React: `pages/` → `features/` → `components/{domain,ui,layout}`; кросс-модульное:
   `stores/`, `services/`, `hooks/`, `utils/`, `types/`, `i18n/`.
@@ -35,7 +35,7 @@ Game Space — кросс-платформенный десктопный лау
 - Данные: `<app_data>/game-space.db`, логи `<app_data>/logs/game-space.log`.
 - Настройки хранятся ДВАЖДЫ: localStorage (`gs-settings`, Zustand persist) + таблица `settings`
   (key/value, generic команды `get_settings`/`update_settings`/`get_setting`).
-  Рабочие ключи: `demo_mode`, `monitoring_interval`, `default_games_dir`, `auto_detect`, `language`…
+  Рабочие ключи: `demo_mode`, `monitoring_interval`, `language`…
 - Tauri-события (подписка в `src/services/events.ts` / `useAppEvents`):
   `game-started {gameId,pid,title}` | `game-started {recovered:true}` | `game-stopped {gameId,durationSeconds}`
   | `game-deleted {gameId}` | `achievement-unlocked` | `statistics-updated {}` | `navigate {path}`
@@ -43,10 +43,9 @@ Game Space — кросс-платформенный десктопный лау
 - Роуты (HashRouter, всё внутри AppLayout): `/`, `/library` (query: filter/genre/developer),
   `/game/:id`, `/achievements`, `/statistics`, `/friends`, `/shop`, `/settings`;
   онбординг — не роут, а ветка в AppLayout (`settings.onboardingDone === false`).
-- Поиск игр: команда `discover_games` (walkdir, depth 4, cap 200) с чёрными списками папок/имён
-  exe (редисты, Engine, DirectX, uninstallers, CrashHandler, программы-лаунчеры);
-  общий фронт-сервис `src/services/discovery.ts` → `scanForGames(dirs)` используется онбордингом,
-  кнопкой в настройках и автосканом при старте (`auto_detect` + `default_games_dir`).
+- Добавление игр только вручную: модалка `GameFormModal` (выбор exe через JS dialog plugin,
+  `api.selectGameExecutable`), drag&drop exe → `openAddGame({title, executablePath})`.
+  Автопоиска игр нет; в онбординге есть шаг «Добавить первую игру» (кнопка открывает ту же модалку).
 
 ## Конвенции фронтенда
 - Только named exports (исключение — default export `App`), файлы `PascalCase.tsx` / `camelCase.ts`,
