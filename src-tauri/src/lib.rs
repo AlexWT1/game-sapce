@@ -8,7 +8,8 @@ mod process;
 mod services;
 mod tray;
 
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 use tauri::menu::MenuItem;
 use tauri::{Emitter, Manager};
@@ -20,6 +21,8 @@ pub struct AppState {
     pub db: Database,
     pub active: ActiveMap,
     pub tray_session_item: Mutex<Option<MenuItem<tauri::Wry>>>,
+    /// Guards `sync_steam_library` against a second overlapping run.
+    pub steam_syncing: Arc<AtomicBool>,
 }
 
 pub fn run() {
@@ -50,6 +53,7 @@ pub fn run() {
                 db,
                 active: Default::default(),
                 tray_session_item: Mutex::new(None),
+                steam_syncing: Arc::new(AtomicBool::new(false)),
             });
 
             tray::setup(app.handle())?;
@@ -79,6 +83,7 @@ pub fn run() {
             commands::games::create_game,
             commands::games::update_game,
             commands::games::delete_game,
+            commands::games::delete_games,
             commands::games::toggle_favorite,
             commands::games::set_game_executable,
             commands::games::get_game_theme,
@@ -92,6 +97,10 @@ pub fn run() {
             commands::launch::get_game_sessions,
             commands::stats::get_statistics,
             commands::stats::get_game_statistics,
+            commands::store::get_store_account,
+            commands::store::link_steam_account,
+            commands::store::unlink_steam_account,
+            commands::store::sync_steam_library,
             commands::achievements::get_achievements,
             commands::achievements::unlock_achievement,
             commands::settings::get_settings,

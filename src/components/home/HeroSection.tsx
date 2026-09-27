@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, MoreHorizontal, Play, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,7 @@ export function HeroSection() {
   const live = useSessionStore((s) => s.liveSeconds);
 
   const runningIds = new Set(running.map((r) => r.gameId));
+  const [brokenCover, setBrokenCover] = useState<string | null>(null);
   const hero: Game | undefined =
     games.find((g) => runningIds.has(g.id)) ??
     games
@@ -50,11 +52,12 @@ export function HeroSection() {
         role="button"
         tabIndex={0}
       >
-        {hero.coverPath && (
+        {hero.coverPath && brokenCover !== hero.coverPath && (
           <img
             src={hero.coverPath}
             alt=""
             className="absolute inset-0 h-full w-full object-cover object-[center_20%] scale-105"
+            onError={() => setBrokenCover(hero.coverPath)}
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-[#070912] via-[#070912]/75 to-transparent" />

@@ -25,6 +25,11 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 sysinfo = "0.33"
 log = { version = "0.4", features = ["std"] }
+tokio = { version = "1", features = ["time"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "query", "system-proxy", "charset", "http2"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
 
 [profile.release]
 codegen-units = 1

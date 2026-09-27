@@ -40,6 +40,86 @@ pub fn kill_pid(pid: u32) -> bool {
     }
 }
 
+/// Sessions started without a known pid (via `steam://`) stay alive while a process
+/// runs from the install folder, or during the boot grace period.
+const LAUNCH_GRACE_SECS: i64 = 120;
+
+fn normalize_path(path: &str) -> String {
+    path.trim().trim_end_matches(['/', '\\']).to_lowercase()
+}
+
+fn exe_under(exe: &std::path::Path, base: &str) -> bool {
+    exe.to_string_lossy().to_lowercase().starts_with(base)
+}
+
+/// True when some running process was started from `install_path`.
+pub fn path_running(install_path: &str) -> bool {
+    let base = normalize_path(install_path);
+    if base.is_empty() {
+        return false;
+    }
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    sys.processes().values().any(|process| {
+        process
+            .exe()
+            .map(|exe| exe_under(exe, &base))
+            .unwrap_or(false)
+    })
+}
+
+/// Kills every running process that was started from `install_path`.
+pub fn kill_by_path(install_path: &str) -> bool {
+    let base = normalize_path(install_path);
+    if base.is_empty() {
+        return false;
+    }
+    let own = Pid::from_u32(std::process::id());
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    let mut killed = false;
+    for process in sys.processes().values() {
+        if process.pid() == own {
+            continue;
+        }
+        if process
+            .exe()
+            .map(|exe| exe_under(exe, &base))
+            .unwrap_or(false)
+            && process.kill()
+        {
+            killed = true;
+        }
+    }
+    killed
+}
+
+fn grace_active(started_at: &str) -> bool {
+    chrono::DateTime::parse_from_rfc3339(started_at)
+        .map(|started| {
+            (Utc::now() - started.with_timezone(&Utc)).num_seconds() < LAUNCH_GRACE_SECS
+        })
+        .unwrap_or(false)
+}
+
+/// Whether an active session should still be considered running.
+pub fn session_alive(state: &AppState, game_id: i64, session: &ActiveSession) -> bool {
+    if session.pid != 0 {
+        return pid_alive(session.pid);
+    }
+    let Ok(game) = crate::commands::games::get_game_internal(state, game_id) else {
+        return false;
+    };
+    let Some(path) = game.install_path.filter(|p| !p.trim().is_empty()) else {
+        return false;
+    };
+    if path_running(&path) {
+        return true;
+    }
+    // Steam may still be downloading or booting the game.
+    grace_active(&session.started_at)
+}
+
 /// Reconciles sessions that were left open when the app was closed.
 pub fn recover_sessions(app: &AppHandle) {
     let state = app.state::<AppState>();
@@ -69,17 +149,15 @@ pub fn recover_sessions(app: &AppHandle) {
     };
 
     for (session_id, game_id, started_at, pid) in open {
-        let alive = pid.map(|p| pid_alive(p as u32)).unwrap_or(false);
+        let candidate = ActiveSession {
+            session_id,
+            pid: pid.unwrap_or(0) as u32,
+            started_at: started_at.clone(),
+        };
+        let alive = session_alive(&state, game_id, &candidate);
         if alive {
             if let Ok(mut active) = state.active.lock() {
-                active.insert(
-                    game_id,
-                    ActiveSession {
-                        session_id,
-                        pid: pid.unwrap_or(0) as u32,
-                        started_at: started_at.clone(),
-                    },
-                );
+                active.insert(game_id, candidate);
             }
             log::info!("Recovered running session for game {game_id} (pid {pid:?})");
             let _ = app.emit(
@@ -188,14 +266,15 @@ pub fn start_monitor(app: AppHandle) {
         std::thread::sleep(Duration::from_secs(interval));
 
         let active_map = app.state::<AppState>().active.clone();
-        let snapshot: Vec<(i64, u32)> = match active_map.lock() {
-            Ok(map) => map.iter().map(|(k, v)| (*k, v.pid)).collect(),
+        let snapshot: Vec<(i64, ActiveSession)> = match active_map.lock() {
+            Ok(map) => map.iter().map(|(k, v)| (*k, v.clone())).collect(),
             Err(_) => Vec::new(),
         };
 
-        for (game_id, pid) in snapshot {
-            if !pid_alive(pid) {
-                log::info!("Process {pid} for game {game_id} exited");
+        let state = app.state::<AppState>();
+        for (game_id, session) in snapshot {
+            if !session_alive(&state, game_id, &session) {
+                log::info!("Game {game_id} is no longer running (pid {})", session.pid);
                 if let Err(e) = finish_session(&app, game_id) {
                     log::error!("Failed to finish session for game {game_id}: {e}");
                 }
@@ -265,7 +344,7 @@ pub fn running_games(app: &AppHandle) -> Vec<RunningGame> {
 
     let mut out = Vec::new();
     for (game_id, session) in active {
-        if !pid_alive(session.pid) {
+        if !session_alive(&state, game_id, &session) {
             continue;
         }
         if let Ok(game) = crate::commands::games::get_game_internal(&state, game_id) {

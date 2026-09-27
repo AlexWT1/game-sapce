@@ -14,6 +14,7 @@ import {
   EyeOff,
   Gamepad,
 } from "lucide-react";
+import { useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useT } from "@/hooks/useT";
 import { useUiStore } from "@/stores/uiStore";
@@ -247,13 +248,15 @@ export function Sidebar() {
 }
 
 function GameCoverThumb({ src, title }: { src: string | null; title: string }) {
-  if (src) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (src && broken !== src) {
     return (
       <img
         src={src}
         alt=""
         className="h-5.5 w-5 h-[22px] w-[22px] rounded object-cover shrink-0"
         loading="lazy"
+        onError={() => setBroken(src)}
       />
     );
   }

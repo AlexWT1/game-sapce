@@ -6,15 +6,22 @@ import { useT } from "@/hooks/useT";
 import { Gamepad2, Plus } from "lucide-react";
 import type { Game } from "@/types";
 
+export interface GameSelection {
+  selecting: boolean;
+  selected: ReadonlySet<number>;
+  onToggle: (id: number) => void;
+}
+
 interface GameGridProps {
   games: Game[];
   loading?: boolean;
   variant?: "grid" | "list" | "recent";
   emptyAction?: React.ReactNode;
   onAdd?: () => void;
+  selection?: GameSelection;
 }
 
-export function GameGrid({ games, loading, variant = "grid", onAdd }: GameGridProps) {
+export function GameGrid({ games, loading, variant = "grid", onAdd, selection }: GameGridProps) {
   const t = useT();
 
   if (loading && games.length === 0) {
@@ -52,7 +59,14 @@ export function GameGrid({ games, loading, variant = "grid", onAdd }: GameGridPr
     return (
       <div className="space-y-2.5">
         {games.map((g) => (
-          <GameCard key={g.id} game={g} variant="list" />
+          <GameCard
+            key={g.id}
+            game={g}
+            variant="list"
+            selecting={selection?.selecting}
+            selected={selection?.selected.has(g.id)}
+            onToggleSelect={() => selection?.onToggle(g.id)}
+          />
         ))}
       </div>
     );
@@ -61,7 +75,14 @@ export function GameGrid({ games, loading, variant = "grid", onAdd }: GameGridPr
   return (
     <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
       {games.map((g) => (
-        <GameCard key={g.id} game={g} variant="grid" />
+        <GameCard
+          key={g.id}
+          game={g}
+          variant="grid"
+          selecting={selection?.selecting}
+          selected={selection?.selected.has(g.id)}
+          onToggleSelect={() => selection?.onToggle(g.id)}
+        />
       ))}
     </div>
   );

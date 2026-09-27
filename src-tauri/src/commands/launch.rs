@@ -1,3 +1,4 @@
+use rusqlite::OptionalExtension;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
@@ -32,14 +33,39 @@ pub fn launch_game(
     }
 
     let game = crate::commands::games::get_game_internal(&state, game_id)?;
-    let exe = game
+
+    // Steam games are started through the steam:// protocol and have no local executable.
+    // A working local executable always wins over the Steam link.
+    let local_exe_ready = game
         .executable_path
         .as_deref()
-        .ok_or_else(|| AppError::launch("Executable не указан. Укажите файл игры."))?;
+        .map(|path| !path.trim().is_empty() && std::path::Path::new(path).exists())
+        .unwrap_or(false);
+    let steam_appid = if local_exe_ready {
+        None
+    } else {
+        state.db.with(|conn| {
+            conn.query_row(
+                "SELECT appid FROM steam_games WHERE game_id = ?1",
+                [game_id],
+                |r| r.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(AppError::Database)
+        })?
+    };
 
-    let path = crate::game::launcher::validate_executable(exe)?;
-    let child = crate::game::launcher::spawn_game(&path)?;
-    let pid = child.id();
+    let pid = if let Some(appid) = steam_appid {
+        crate::services::opener::open_url(&format!("steam://rungameid/{appid}"))?;
+        0u32
+    } else {
+        let exe = game
+            .executable_path
+            .as_deref()
+            .ok_or_else(|| AppError::launch("Executable не указан. Укажите файл игры."))?;
+        let path = crate::game::launcher::validate_executable(exe)?;
+        crate::game::launcher::spawn_game(&path)?.id()
+    };
     let now = chrono::Utc::now().to_rfc3339();
 
     let session_id = state.db.with(|conn| {
@@ -92,17 +118,26 @@ pub fn launch_game(
 
 #[tauri::command]
 pub fn stop_game(app: AppHandle, state: State<'_, AppState>, game_id: i64) -> AppResult<()> {
-    let pid = {
+    let session = {
         let active = state
             .active
             .lock()
             .map_err(|_| AppError::Other("lock poisoned".into()))?;
-        active.get(&game_id).map(|s| s.pid)
+        active.get(&game_id).cloned()
     };
 
-    if let Some(pid) = pid {
-        if monitor::kill_pid(pid) {
-            log::info!("Killed pid {pid} for game {game_id}");
+    if let Some(session) = session {
+        if session.pid == 0 {
+            // Started via steam:// — pid is unknown, stop processes from the install folder.
+            if let Ok(game) = crate::commands::games::get_game_internal(&state, game_id) {
+                if let Some(path) = game.install_path {
+                    if monitor::kill_by_path(&path) {
+                        log::info!("Killed processes of game {game_id} under {path}");
+                    }
+                }
+            }
+        } else if monitor::kill_pid(session.pid) {
+            log::info!("Killed pid {} for game {game_id}", session.pid);
         }
         // Finalize immediately; monitor would do it otherwise.
         monitor::finish_session(&app, game_id)?;
@@ -123,10 +158,10 @@ pub fn is_game_running(state: State<'_, AppState>, game_id: i64) -> AppResult<bo
         .active
         .lock()
         .map_err(|_| AppError::Other("lock poisoned".into()))?;
-    Ok(active
-        .get(&game_id)
-        .map(|s| monitor::pid_alive(s.pid))
-        .unwrap_or(false))
+    Ok(match active.get(&game_id) {
+        Some(session) => monitor::session_alive(&state, game_id, session),
+        None => false,
+    })
 }
 
 #[tauri::command]

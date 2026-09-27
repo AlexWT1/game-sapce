@@ -3,6 +3,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import type {
   AppInfo,
   Achievement,
+  BulkDeleteResult,
   Game,
   GameInput,
   GameSession,
@@ -12,6 +13,8 @@ import type {
   SearchResults,
   SettingsMap,
   Statistics,
+  SteamSyncResult,
+  StoreAccount,
 } from "@/types";
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -32,6 +35,8 @@ export const api = {
   updateGame: (id: number, input: GameInput) =>
     call<Game>("update_game", { id, input }),
   deleteGame: (id: number) => call<void>("delete_game", { id }),
+  deleteGames: (ids: number[]) =>
+    call<BulkDeleteResult>("delete_games", { ids }),
   toggleFavorite: (id: number) => call<Game>("toggle_favorite", { id }),
   setGameExecutable: (id: number, path: string) =>
     call<Game>("set_game_executable", { id, path }),
@@ -67,6 +72,13 @@ export const api = {
   updateSettings: (settings: SettingsMap) =>
     call<SettingsMap>("update_settings", { settings }),
   getSetting: (key: string) => call<string | null>("get_setting", { key }),
+
+  // store integrations
+  getStoreAccount: () => call<StoreAccount | null>("get_store_account"),
+  linkSteamAccount: (apiKey: string, profileUrl: string) =>
+    call<StoreAccount>("link_steam_account", { apiKey, profileUrl }),
+  unlinkSteamAccount: () => call<void>("unlink_steam_account"),
+  syncSteamLibrary: () => call<SteamSyncResult>("sync_steam_library"),
 
   // system (dialogs via JS plugin — reliable on Linux)
   windowMinimize: () => call<void>("window_minimize"),

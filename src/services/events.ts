@@ -37,6 +37,7 @@ export const events = {
   onFileDropped: (h: Handler<FileDroppedPayload>) => on("file-dropped", h),
   onNavigate: (h: Handler<NavigatePayload>) => on("navigate", h),
   onGameDeleted: (h: Handler<{ gameId: number }>) => on("game-deleted", h),
+  onGamesDeleted: (h: Handler<{ ids: number[] }>) => on("games-deleted", h),
 };
 
 export type RunningChanged = RunningGame[];

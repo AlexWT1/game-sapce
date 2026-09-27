@@ -55,6 +55,7 @@ export function GameDetailsPage() {
     Array<{ id: number; startedAt: string; endedAt: string | null; durationSeconds: number }>
   >([]);
   const [themeLoaded, setThemeLoaded] = useState(false);
+  const [brokenCover, setBrokenCover] = useState<string | null>(null);
 
   const game = games.find((g) => g.id === gameId);
 
@@ -88,17 +89,19 @@ export function GameDetailsPage() {
   }
 
   const menu = buildGameMenu(game, t);
+  const onCoverError = () => setBrokenCover(game.coverPath);
 
   return (
     <div ref={rootRef} className="min-h-full" data-theme-loaded={themeLoaded}>
       {/* Hero */}
       <ContextMenu items={menu} className="w-full">
         <section className="relative h-[280px] overflow-hidden vignette border-b border-white/8">
-          {game.coverPath && (
+          {game.coverPath && brokenCover !== game.coverPath && (
             <img
               src={game.coverPath}
               alt=""
               className="absolute inset-0 h-full w-full object-cover object-[center_25%] scale-110 blur-[1px] opacity-70"
+              onError={onCoverError}
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#070912] via-[#070912]/70 to-[#070912]/40" />
@@ -112,8 +115,13 @@ export function GameDetailsPage() {
 
           <div className="relative h-full flex items-end gap-6 px-6 pb-6 max-w-[1100px]">
             <div className="h-[160px] w-[120px] rounded-xl overflow-hidden border border-white/15 shadow-2xl shrink-0">
-              {game.coverPath ? (
-                <img src={game.coverPath} alt={game.title} className="h-full w-full object-cover" />
+              {game.coverPath && brokenCover !== game.coverPath ? (
+                <img
+                  src={game.coverPath}
+                  alt={game.title}
+                  className="h-full w-full object-cover"
+                  onError={onCoverError}
+                />
               ) : (
                 <div className="h-full w-full grid place-items-center bg-white/5">
                   <Gamepad2 className="h-8 w-8 text-dim" />

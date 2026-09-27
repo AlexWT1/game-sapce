@@ -187,3 +187,25 @@ export interface Friend {
   lastSeen: string;
   status: string;
 }
+
+export interface StoreAccount {
+  provider: string;
+  accountId: string;
+  profileUrl: string;
+  personaName: string;
+  avatarUrl: string;
+  linkedAt: string;
+  lastSyncedAt: string | null;
+}
+
+export interface SteamSyncResult {
+  owned: number;
+  installed: number;
+  added: number;
+  updated: number;
+}
+
+export interface BulkDeleteResult {
+  deletedIds: number[];
+  skipped: number;
+}

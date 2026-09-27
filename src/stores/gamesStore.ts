@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { api } from "@/services/api";
-import type { Game, GameInput } from "@/types";
+import type { BulkDeleteResult, Game, GameInput } from "@/types";
 
 interface GamesState {
   games: Game[];
@@ -11,6 +11,7 @@ interface GamesState {
   create: (input: GameInput) => Promise<Game>;
   update: (id: number, input: GameInput) => Promise<Game>;
   remove: (id: number) => Promise<void>;
+  removeMany: (ids: number[]) => Promise<BulkDeleteResult>;
   toggleFavorite: (id: number) => Promise<void>;
   setExecutable: (id: number, path: string) => Promise<Game>;
   upsertLocal: (game: Game) => void;
@@ -49,6 +50,16 @@ export const useGamesStore = create<GamesState>((set, get) => ({
   remove: async (id) => {
     await api.deleteGame(id);
     set({ games: get().games.filter((g) => g.id !== id) });
+  },
+
+  removeMany: async (ids) => {
+    if (ids.length === 0) return { deletedIds: [], skipped: 0 };
+    const result = await api.deleteGames(ids);
+    const removed = new Set(result.deletedIds);
+    if (removed.size > 0) {
+      set({ games: get().games.filter((g) => !removed.has(g.id)) });
+    }
+    return result;
   },
 
   toggleFavorite: async (id) => {

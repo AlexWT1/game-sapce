@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Gamepad2 } from "lucide-react";
 import { cx } from "@/utils/format";
 
@@ -9,7 +10,8 @@ interface GameCoverThumbProps {
 }
 
 export function GameCoverThumb({ src, title, size = 22, className }: GameCoverThumbProps) {
-  if (src) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (src && broken !== src) {
     return (
       <img
         src={src}
@@ -19,6 +21,7 @@ export function GameCoverThumb({ src, title, size = 22, className }: GameCoverTh
         className={cx("rounded object-cover shrink-0", className)}
         style={{ width: size, height: size }}
         loading="lazy"
+        onError={() => setBroken(src)}
       />
     );
   }

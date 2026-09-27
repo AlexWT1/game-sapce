@@ -8,7 +8,8 @@ Game Space — кросс-платформенный десктопный лау
 
 ## Стек
 - **Backend**: Tauri 2 + Rust 2021. `rusqlite` (bundled SQLite, WAL), `thiserror`/`anyhow`,
-  `sysinfo`, `chrono`, `log` + самописный FileLogger; фичи `tray-icon`, `image-png`;
+  `sysinfo`, `chrono`, `log` + самописный FileLogger; `reqwest` (rustls, Steam Web API),
+  `winreg` (Windows — поиск Steam в реестре); фичи `tray-icon`, `image-png`;
   плагины: `tauri-plugin-dialog`, `tauri-plugin-single-instance`.
 - **Frontend**: React 19, TypeScript 5.8 (strict, `noUncheckedIndexedAccess`), Vite 6,
   Tailwind CSS 4, Zustand (+persist), Framer Motion, Recharts, Lucide icons,
@@ -18,9 +19,9 @@ Game Space — кросс-платформенный десктопный лау
 
 ## Структура
 - `src-tauri/src/` — Rust: `lib.rs` (Builder: плагины → setup: logger → БД → seed → tray →
-  монитор; `on_window_event` (drag&drop); `invoke_handler`), `commands/{games,launch,achievements,settings,stats,system}`,
+  монитор; `on_window_event` (drag&drop); `invoke_handler`), `commands/{games,launch,achievements,settings,stats,store,system}`,
   `database/`, `game/{launcher,achievements,seed,theme}`, `process/monitor`, `tray/`,
-  `services/{export,placeholder}`, `models` (все DTO с `#[serde(rename_all="camelCase")]`),
+  `services/{export,placeholder,steam,opener}`, `models` (все DTO с `#[serde(rename_all="camelCase")]`),
   `error` (`AppError` сериализуется фронтенду как plain string).
 - `src/` — React: `pages/` → `features/` → `components/{domain,ui,layout}`; кросс-модульное:
   `stores/`, `services/`, `hooks/`, `utils/`, `types/`, `i18n/`.
@@ -43,9 +44,17 @@ Game Space — кросс-платформенный десктопный лау
 - Роуты (HashRouter, всё внутри AppLayout): `/`, `/library` (query: filter/genre/developer),
   `/game/:id`, `/achievements`, `/statistics`, `/friends`, `/shop`, `/settings`;
   онбординг — не роут, а ветка в AppLayout (`settings.onboardingDone === false`).
-- Добавление игр только вручную: модалка `GameFormModal` (выбор exe через JS dialog plugin,
+- Добавление игр вручную: модалка `GameFormModal` (выбор exe через JS dialog plugin,
   `api.selectGameExecutable`), drag&drop exe → `openAddGame({title, executablePath})`.
-  Автопоиска игр нет; в онбординге есть шаг «Добавить первую игру» (кнопка открывает ту же модалку).
+  Автопоиска игр нет (кроме Steam-синхронизации); в онбординге есть шаг «Добавить первую игру»
+  (кнопка открывает ту же модалку).
+- Steam-интеграция (вкладка «Магазин»): привязка аккаунта (API-ключ + ссылка на профиль) и
+  синхронизация установленных игр — `commands/store.rs`, `services/steam/{api,manifest}.rs`,
+  таблицы `store_accounts`/`steam_games` (миграция `002_steam.sql`, вне `games` — позиционные
+  мапперы не трогаем), команды `get_store_account`/`link_steam_account`/`unlink_steam_account`/
+  `sync_steam_library`. Запуск Steam-игр — `steam://rungameid` через `services/opener::open_url`;
+  pid неизвестен (0) → сессия живёт по процессу из `install_path` + грейс 120с
+  (`process/monitor::session_alive`). Существующий локальный exe приоритетнее steam-ссылки.
 
 ## Конвенции фронтенда
 - Только named exports (исключение — default export `App`), файлы `PascalCase.tsx` / `camelCase.ts`,
