@@ -1212,7 +1212,6 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-single-instance",
  "thiserror 2.0.20",
- "walkdir",
 ]
 
 [[package]]

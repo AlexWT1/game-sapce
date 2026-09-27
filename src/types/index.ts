@@ -145,13 +145,6 @@ export interface SearchResults {
   developers: string[];
 }
 
-export interface DiscoveredGame {
-  title: string;
-  path: string;
-  installDir: string;
-  platform: string;
-}
-
 export interface RunningGame {
   gameId: number;
   title: string;

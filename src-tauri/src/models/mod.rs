@@ -158,15 +158,6 @@ pub struct SearchResults {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DiscoveredGame {
-    pub title: String,
-    pub path: String,
-    pub install_dir: String,
-    pub platform: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RunningGame {
     pub game_id: i64,
     pub title: String,

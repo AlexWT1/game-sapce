@@ -83,7 +83,6 @@ pub fn run() {
             commands::games::set_game_executable,
             commands::games::get_game_theme,
             commands::games::set_game_theme,
-            commands::games::game_exists,
             commands::launch::launch_game,
             commands::launch::stop_game,
             commands::launch::get_running_games,
@@ -105,13 +104,11 @@ pub fn run() {
             commands::system::select_game_executable,
             commands::system::select_game_directory,
             commands::system::select_any_file,
-            commands::system::discover_games,
             commands::system::export_data,
             commands::system::import_data,
             commands::system::reset_data,
             commands::system::search_all,
             commands::system::open_path,
-            commands::system::get_default_game_dirs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Game Space");

@@ -3,7 +3,6 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import type {
   AppInfo,
   Achievement,
-  DiscoveredGame,
   Game,
   GameInput,
   GameSession,
@@ -36,7 +35,6 @@ export const api = {
   toggleFavorite: (id: number) => call<Game>("toggle_favorite", { id }),
   setGameExecutable: (id: number, path: string) =>
     call<Game>("set_game_executable", { id, path }),
-  gameExists: (title: string) => call<boolean>("game_exists", { title }),
 
   // themes
   getGameTheme: (gameId: number) => call<GameTheme>("get_game_theme", { gameId }),
@@ -79,16 +77,10 @@ export const api = {
     const path = await openDialog({ multiple: false, title: "Выберите исполняемый файл" });
     return typeof path === "string" ? path : null;
   },
-  selectGameDirectory: async () => {
-    const path = await openDialog({ directory: true, title: "Выберите папку с играми" });
-    return typeof path === "string" ? path : null;
-  },
   selectAnyFile: async () => {
     const path = await openDialog({ multiple: false });
     return typeof path === "string" ? path : null;
   },
-  discoverGames: (dirs: string[] = []) =>
-    call<DiscoveredGame[]>("discover_games", { dirs }),
   exportData: async (path?: string | null) => {
     let target = path ?? null;
     if (!target) {
@@ -118,7 +110,6 @@ export const api = {
   resetData: () => call<void>("reset_data"),
   searchAll: (query: string) => call<SearchResults>("search_all", { query }),
   openPath: (path: string) => call<void>("open_path", { path }),
-  getDefaultGameDirs: () => call<string[]>("get_default_game_dirs"),
 };
 
 export type Api = typeof api;

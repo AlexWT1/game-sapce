@@ -1,4 +1,4 @@
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::Connection;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
@@ -339,16 +339,4 @@ pub fn set_game_theme(
     theme_input: GameTheme,
 ) -> AppResult<GameTheme> {
     state.db.with(|conn| theme::upsert(conn, &theme_input))
-}
-
-#[tauri::command]
-pub fn game_exists(state: State<'_, AppState>, title: String) -> AppResult<bool> {
-    state.db.with(|conn| {
-        conn.query_row("SELECT 1 FROM games WHERE title = ?1", [title], |r| {
-            r.get::<_, i64>(0)
-        })
-        .optional()
-        .map(|v| v.is_some())
-        .map_err(Into::into)
-    })
 }

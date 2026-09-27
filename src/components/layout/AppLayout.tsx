@@ -14,7 +14,6 @@ import { useT } from "@/hooks/useT";
 import { useUiStore } from "@/stores/uiStore";
 import { useSettingsStore, applyAccent, applyVisualPreferences } from "@/stores/settingsStore";
 import { api } from "@/services/api";
-import { scanForGames } from "@/services/discovery";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useStatisticsStore } from "@/stores/statisticsStore";
@@ -151,31 +150,11 @@ export function AppLayout() {
     );
   }, [navigate]);
 
-  // Auto-detect: pick up new games in the configured directory on startup.
-  useEffect(() => {
-    if (!onboardingDone) return;
-    const { autoDetect, defaultGamesDir } = useSettingsStore.getState();
-    if (!autoDetect || !defaultGamesDir) return;
-    let alive = true;
-    void scanForGames([defaultGamesDir])
-      .then((r) => {
-        if (!alive || r.added <= 0) return;
-        useUiStore.getState().pushToast({
-          kind: "success",
-          title: t("settings.scanDone"),
-          body: `${t("settings.added")}: ${r.added}`,
-        });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [onboardingDone]);
-
   if (!onboardingDone) {
     return (
       <>
         <Onboarding />
+        <GameFormModal />
         <ToastHost />
       </>
     );

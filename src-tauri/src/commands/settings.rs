@@ -71,13 +71,5 @@ pub fn update_settings(
 
 #[tauri::command]
 pub fn get_setting(state: State<'_, AppState>, key: String) -> AppResult<Option<String>> {
-    state.db.with(|conn| {
-        conn.query_row(
-            "SELECT value FROM settings WHERE key = ?1",
-            [key],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(Into::into)
-    })
+    state.db.with(|conn| read_setting(conn, &key).map_err(Into::into))
 }
