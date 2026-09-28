@@ -37,3 +37,5 @@ yarn-error.json
 
 # Unnecessary files
 assets/*.*
+AGENTS.MD
+RULES.MD
