@@ -1,6 +1,7 @@
 /** Formats seconds → "1 мин 58 сек" / "3 ч" / "426 ч 17 мин". */
 export function formatPlaytime(seconds: number): string {
   if (seconds < 0) seconds = 0;
+  if (seconds === 0) return "0 мин";
   if (seconds < 60) return `${seconds} сек`;
   if (seconds < 3600) {
     const m = Math.floor(seconds / 60);
