@@ -14,6 +14,7 @@ import {
   EyeOff,
   Gamepad,
 } from "lucide-react";
+import { useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useT } from "@/hooks/useT";
 import { useUiStore } from "@/stores/uiStore";
@@ -65,58 +66,61 @@ export function Sidebar() {
     new URLSearchParams(location.search).get("filter") === key;
 
   return (
-    <aside
-      className={cx(
-        "relative z-30 h-full flex flex-col shrink-0 border-r border-white/8",
-        "bg-[#0a0c18]/80 backdrop-blur-xl transition-[width] duration-300 ease-in-out overflow-hidden",
-        collapsed ? "w-[72px]" : "w-[var(--sidebar-width)]",
-      )}
-      aria-label="Sidebar"
-    >
-      <div className={cx("flex items-center h-[var(--topbar-height)] px-4 border-b border-white/8", collapsed && "justify-center px-0")}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#7c5cff] to-[#3b82f6] grid place-items-center shrink-0 shadow-[0_0_20px_-4px_#7c5cff]">
-            <Gamepad2 className="h-4.5 w-4.5 h-[18px] w-[18px] text-white" />
-          </div>
-          <div
-            className={cx(
-              "min-w-0 overflow-hidden transition-all duration-300 ease-in-out",
-              collapsed ? "opacity-0 w-0" : "opacity-100 max-w-[180px]",
-            )}
-          >
-            <div className="text-[15px] font-bold tracking-tight text-ink leading-none whitespace-nowrap">
-              Game Space
+    <div className="relative h-full shrink-0">
+      <aside
+        className={cx(
+          "relative z-30 h-full flex flex-col border-r border-white/8",
+          "bg-[#0a0c18]/80 backdrop-blur-xl transition-[width] duration-300 ease-in-out overflow-hidden",
+          collapsed ? "w-[72px]" : "w-[var(--sidebar-width)]",
+        )}
+        aria-label="Sidebar"
+      >
+        <div
+          data-tauri-drag-region="deep"
+          className={cx(
+            "flex items-center h-[var(--topbar-height)] border-b border-white/8",
+            "transition-[padding] duration-300 ease-in-out",
+            collapsed ? "px-5" : "px-4",
+          )}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#7c5cff] to-[#3b82f6] grid place-items-center shrink-0 shadow-[0_0_20px_-4px_#7c5cff]">
+              <Gamepad2 className="h-4.5 w-4.5 h-[18px] w-[18px] text-white" />
+            </div>
+            <div
+              className={cx(
+                "min-w-0 overflow-hidden transition-all duration-300 ease-in-out",
+                collapsed ? "opacity-0 w-0" : "opacity-100 max-w-[180px]",
+              )}
+            >
+              <div className="text-[15px] font-bold tracking-tight text-ink leading-none whitespace-nowrap">
+                Game Space
+              </div>
             </div>
           </div>
         </div>
-        <button
-          onClick={toggle}
-          className={cx(
-            "ml-auto p-1.5 rounded-lg text-dim hover:text-ink hover:bg-white/8 transition",
-            collapsed && "absolute -right-3 top-1/2 -translate-y-1/2 bg-[#12152b] border border-white/10 shadow",
-          )}
-          aria-label="Toggle sidebar"
-        >
-          <ChevronsLeft className={cx("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
-        </button>
-      </div>
 
-      <nav className="flex-1 overflow-y-auto no-scrollbar px-2.5 py-3 space-y-1">
-        {NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              cx(
-                "group relative flex items-center gap-3 px-3 h-10 rounded-xl text-[13.5px] transition",
-                isActive
-                  ? "bg-[var(--color-accent)]/14 text-ink font-medium"
-                  : "text-muted hover:text-ink hover:bg-white/6",
-                collapsed && "justify-center px-0",
-              )
-            }
-          >
+        <nav
+          className={cx(
+            "flex-1 overflow-y-auto no-scrollbar py-3 space-y-1",
+            "transition-[padding] duration-300 ease-in-out",
+            collapsed ? "px-3.5" : "px-2.5",
+          )}
+        >
+          {NAV.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                cx(
+                  "group relative flex items-center gap-3 px-3 h-10 rounded-xl text-[13.5px] transition",
+                  isActive
+                    ? "bg-[var(--color-accent)]/14 text-ink font-medium"
+                    : "text-muted hover:text-ink hover:bg-white/6",
+                )
+              }
+            >
             {({ isActive }) => (
               <>
                 {isActive && (
@@ -202,8 +206,8 @@ export function Sidebar() {
 
       <div
         className={cx(
-          "p-3 transition-all duration-300 ease-in-out overflow-hidden",
-          collapsed ? "opacity-0 max-h-0 p-0" : "opacity-100 max-h-40",
+          "transition-all duration-300 ease-in-out overflow-hidden",
+          collapsed ? "opacity-0 max-h-0 p-0" : "opacity-100 max-h-40 p-3",
         )}
         aria-hidden={collapsed}
       >
@@ -219,18 +223,40 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-    </aside>
+      </aside>
+
+      <button
+        onClick={toggle}
+        className={cx(
+          "absolute z-40 -right-3 p-1.5 rounded-full text-dim",
+          "bg-[#12152b] border border-white/10 shadow-lg",
+          "hover:text-ink hover:bg-[#1a1e3a] transition",
+          "top-[calc(var(--topbar-height)/2)] -translate-y-1/2",
+        )}
+        aria-label="Toggle sidebar"
+        aria-expanded={!collapsed}
+      >
+        <ChevronsLeft
+          className={cx(
+            "h-4 w-4 transition-transform duration-300 ease-in-out",
+            collapsed && "rotate-180",
+          )}
+        />
+      </button>
+    </div>
   );
 }
 
 function GameCoverThumb({ src, title }: { src: string | null; title: string }) {
-  if (src) {
+  const [broken, setBroken] = useState<string | null>(null);
+  if (src && broken !== src) {
     return (
       <img
         src={src}
         alt=""
         className="h-5.5 w-5 h-[22px] w-[22px] rounded object-cover shrink-0"
         loading="lazy"
+        onError={() => setBroken(src)}
       />
     );
   }

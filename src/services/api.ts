@@ -3,7 +3,7 @@ import { open as openDialog, save as saveDialog } from "@tauri-apps/plugin-dialo
 import type {
   AppInfo,
   Achievement,
-  DiscoveredGame,
+  BulkDeleteResult,
   Game,
   GameInput,
   GameSession,
@@ -13,6 +13,8 @@ import type {
   SearchResults,
   SettingsMap,
   Statistics,
+  SteamSyncResult,
+  StoreAccount,
 } from "@/types";
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -33,10 +35,11 @@ export const api = {
   updateGame: (id: number, input: GameInput) =>
     call<Game>("update_game", { id, input }),
   deleteGame: (id: number) => call<void>("delete_game", { id }),
+  deleteGames: (ids: number[]) =>
+    call<BulkDeleteResult>("delete_games", { ids }),
   toggleFavorite: (id: number) => call<Game>("toggle_favorite", { id }),
   setGameExecutable: (id: number, path: string) =>
     call<Game>("set_game_executable", { id, path }),
-  gameExists: (title: string) => call<boolean>("game_exists", { title }),
 
   // themes
   getGameTheme: (gameId: number) => call<GameTheme>("get_game_theme", { gameId }),
@@ -70,6 +73,13 @@ export const api = {
     call<SettingsMap>("update_settings", { settings }),
   getSetting: (key: string) => call<string | null>("get_setting", { key }),
 
+  // store integrations
+  getStoreAccount: () => call<StoreAccount | null>("get_store_account"),
+  linkSteamAccount: (apiKey: string, profileUrl: string) =>
+    call<StoreAccount>("link_steam_account", { apiKey, profileUrl }),
+  unlinkSteamAccount: () => call<void>("unlink_steam_account"),
+  syncSteamLibrary: () => call<SteamSyncResult>("sync_steam_library"),
+
   // system (dialogs via JS plugin — reliable on Linux)
   windowMinimize: () => call<void>("window_minimize"),
   windowToggleMaximize: () => call<void>("window_toggle_maximize"),
@@ -79,16 +89,10 @@ export const api = {
     const path = await openDialog({ multiple: false, title: "Выберите исполняемый файл" });
     return typeof path === "string" ? path : null;
   },
-  selectGameDirectory: async () => {
-    const path = await openDialog({ directory: true, title: "Выберите папку с играми" });
-    return typeof path === "string" ? path : null;
-  },
   selectAnyFile: async () => {
     const path = await openDialog({ multiple: false });
     return typeof path === "string" ? path : null;
   },
-  discoverGames: (dirs: string[] = []) =>
-    call<DiscoveredGame[]>("discover_games", { dirs }),
   exportData: async (path?: string | null) => {
     let target = path ?? null;
     if (!target) {
@@ -118,7 +122,6 @@ export const api = {
   resetData: () => call<void>("reset_data"),
   searchAll: (query: string) => call<SearchResults>("search_all", { query }),
   openPath: (path: string) => call<void>("open_path", { path }),
-  getDefaultGameDirs: () => call<string[]>("get_default_game_dirs"),
 };
 
 export type Api = typeof api;

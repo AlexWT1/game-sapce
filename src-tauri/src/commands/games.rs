@@ -3,7 +3,8 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
 use crate::game::{achievements, theme};
-use crate::models::{Game, GameInput, GameTheme};
+use crate::models::{BulkDeleteResult, Game, GameInput, GameTheme};
+use crate::process::monitor::ActiveMap;
 use crate::services::placeholder::placeholder_cover;
 use crate::AppState;
 
@@ -289,6 +290,86 @@ pub fn delete_game(app: AppHandle, state: State<'_, AppState>, id: i64) -> AppRe
     Ok(())
 }
 
+/// Removes several library entries at once (running games are skipped).
+#[tauri::command]
+pub fn delete_games(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    ids: Vec<i64>,
+) -> AppResult<BulkDeleteResult> {
+    let result = state.db.with(|conn| bulk_delete(conn, &state.active, ids))?;
+    if !result.deleted_ids.is_empty() {
+        let _ = app.emit(
+            "games-deleted",
+            serde_json::json!({ "ids": result.deleted_ids }),
+        );
+        let _ = app.emit("statistics-updated", serde_json::json!({}));
+    }
+    Ok(result)
+}
+
+pub(crate) fn bulk_delete(
+    conn: &Connection,
+    active: &ActiveMap,
+    ids: Vec<i64>,
+) -> AppResult<BulkDeleteResult> {
+    let mut targets: Vec<i64> = ids;
+    targets.sort_unstable();
+    targets.dedup();
+
+    let mut skipped = 0i64;
+    {
+        let active = active
+            .lock()
+            .map_err(|_| AppError::Other("active sessions lock poisoned".into()))?;
+        targets.retain(|id| {
+            if active.contains_key(id) {
+                skipped += 1;
+                false
+            } else {
+                true
+            }
+        });
+    }
+    if targets.is_empty() {
+        return Ok(BulkDeleteResult {
+            deleted_ids: Vec::new(),
+            skipped,
+        });
+    }
+
+    let mut removed: Vec<(i64, String)> = Vec::new();
+    conn.execute_batch("BEGIN IMMEDIATE")?;
+    let outcome: AppResult<()> = (|| {
+        for id in &targets {
+            let title: Option<String> = conn
+                .query_row("SELECT title FROM games WHERE id = ?1", [*id], |r| r.get(0))
+                .optional()?;
+            if let Some(title) = title {
+                conn.execute("DELETE FROM games WHERE id = ?1", [*id])?;
+                removed.push((*id, title));
+            }
+        }
+        Ok(())
+    })();
+    match outcome {
+        Ok(()) => conn.execute_batch("COMMIT")?,
+        Err(err) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            return Err(err);
+        }
+    }
+
+    let deleted = removed.len();
+    let titles: Vec<&str> = removed.iter().map(|(_, title)| title.as_str()).collect();
+    log::info!(
+        "Bulk delete: removed {deleted} games ({}), skipped {skipped} running",
+        titles.join(", ")
+    );
+    let deleted_ids: Vec<i64> = removed.into_iter().map(|(id, _)| id).collect();
+    Ok(BulkDeleteResult { deleted_ids, skipped })
+}
+
 #[tauri::command]
 pub fn toggle_favorite(
     app: AppHandle,
@@ -341,14 +422,68 @@ pub fn set_game_theme(
     state.db.with(|conn| theme::upsert(conn, &theme_input))
 }
 
-#[tauri::command]
-pub fn game_exists(state: State<'_, AppState>, title: String) -> AppResult<bool> {
-    state.db.with(|conn| {
-        conn.query_row("SELECT 1 FROM games WHERE title = ?1", [title], |r| {
-            r.get::<_, i64>(0)
-        })
-        .optional()
-        .map(|v| v.is_some())
-        .map_err(Into::into)
-    })
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::process::monitor::ActiveSession;
+
+    fn memory_db() -> Connection {
+        let conn = Connection::open_in_memory().expect("memory db");
+        conn.pragma_update(None, "foreign_keys", "ON").expect("pragma");
+        crate::database::migrations::run(&conn).expect("migrations");
+        conn
+    }
+
+    fn insert_game(conn: &Connection, title: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO games (title, created_at, updated_at) VALUES (?1, 't', 't')",
+            [title],
+        )
+        .expect("insert game");
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn bulk_delete_removes_selected_and_skips_running() {
+        let conn = memory_db();
+        let first = insert_game(&conn, "Alpha");
+        let running = insert_game(&conn, "Beta");
+        let last = insert_game(&conn, "Gamma");
+
+        let active: ActiveMap = Default::default();
+        active.lock().expect("active lock").insert(
+            running,
+            ActiveSession {
+                session_id: 1,
+                pid: 4242,
+                started_at: "t".into(),
+            },
+        );
+
+        let result =
+            bulk_delete(&conn, &active, vec![first, running, last, running]).expect("bulk delete");
+        assert_eq!(result.deleted_ids, vec![first, last]);
+        assert_eq!(result.skipped, 1);
+
+        let remaining: String = conn
+            .query_row("SELECT title FROM games", [], |r| r.get(0))
+            .expect("remaining game");
+        assert_eq!(remaining, "Beta");
+    }
+
+    #[test]
+    fn bulk_delete_without_targets_is_a_noop() {
+        let conn = memory_db();
+        insert_game(&conn, "Alpha");
+        let active: ActiveMap = Default::default();
+
+        let result = bulk_delete(&conn, &active, Vec::new()).expect("bulk delete");
+        assert!(result.deleted_ids.is_empty());
+        assert_eq!(result.skipped, 0);
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM games", [], |r| r.get(0))
+            .expect("count");
+        assert_eq!(count, 1);
+    }
 }

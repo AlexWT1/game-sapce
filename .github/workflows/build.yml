@@ -1,0 +1,142 @@
+name: build
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev \
+            librsvg2-dev rpm
+          sudo apt-get install -y libfuse2t64 || sudo apt-get install -y libfuse2 || true
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Sync version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node - "$VERSION" <<'EOF'
+          const fs = require('fs');
+          const version = process.argv[2];
+          for (const file of ['src-tauri/tauri.conf.json', 'package.json']) {
+            const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+            json.version = version;
+            fs.writeFileSync(file, JSON.stringify(json, null, 2) + '\n');
+          }
+          EOF
+
+      - name: Build bundles
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npm run tauri build
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundles-${{ runner.os }}
+          path: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error
+
+  release:
+    name: github release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download bundles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bundles-*
+          path: bundles
+          merge-multiple: true
+
+      - name: Generate release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          {
+            printf '## Changelog\n\n'
+            PREV="$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)"
+            if [ -n "$PREV" ]; then RANGE="$PREV..$TAG"; else RANGE="$TAG"; fi
+            git log --pretty=format:'- %s (%h)' "$RANGE" \
+              | grep -iE '^- (fix|update|add|remove):' \
+              | sed -E -e 's/^- fix:/🐛/I' -e 's/^- update:/🔄/I' \
+                       -e 's/^- add:/✨/I' -e 's/^- remove:/🗑️/I' \
+              || printf '%s\n' "_No matching commits._"
+            printf '\n'
+          } > release-notes.md
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' FILES < <(find bundles -type f \
+            \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' \
+               -o -name '*.msi' -o -name '*.exe' \) -print0)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No bundle files found" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes
+          fi
+          ARGS=(--verify-tag --title "$TAG" --notes-file release-notes.md)
+          if [[ "$TAG" == *-* ]]; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${ARGS[@]}" "${FILES[@]}"

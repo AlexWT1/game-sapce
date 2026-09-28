@@ -6,6 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useT } from "@/hooks/useT";
 import { useLocaleCode } from "@/hooks/useT";
 import { formatHMS } from "@/utils/format";
+import { canLaunch } from "@/utils/game";
 import type { Game } from "@/types";
 
 interface LaunchButtonProps {
@@ -27,7 +28,7 @@ export function LaunchButton({ game, size = "md", block }: LaunchButtonProps) {
   const [busy, setBusy] = useState(false);
   void locale;
 
-  const missingExe = !game.executablePath;
+  const missingExe = !canLaunch(game);
 
   const onPlay = async (e: React.MouseEvent) => {
     e.stopPropagation();

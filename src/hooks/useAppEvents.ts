@@ -70,6 +70,13 @@ export function useAppEvents() {
     );
 
     unlisteners.push(
+      events.onGamesDeleted(() => {
+        void useGamesStore.getState().load(true);
+        void useStatisticsStore.getState().load(true);
+      }),
+    );
+
+    unlisteners.push(
       events.onFileDropped((payload) => {
         const path = payload.paths[0];
         if (!path) return;

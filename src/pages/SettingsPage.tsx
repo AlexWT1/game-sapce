@@ -3,7 +3,6 @@ import {
   Bell,
   Database,
   Download,
-  FolderOpen,
   Info,
   Monitor,
   Palette,
@@ -90,18 +89,6 @@ export function SettingsPage() {
         await useAchievementsStore.getState().load(null, true);
       },
     });
-
-  const pickDir = async () => {
-    try {
-      const dir = await api.selectGameDirectory();
-      if (dir) {
-        local.set({ defaultGamesDir: dir });
-        await persistBackend({ default_games_dir: dir });
-      }
-    } catch (e) {
-      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
-    }
-  };
 
   return (
     <div className="p-5 max-w-3xl space-y-6 min-h-full">
@@ -230,31 +217,6 @@ export function SettingsPage() {
       </Section>
 
       <Section icon={<Monitor className="h-4 w-4" />} title={t("settings.games")}>
-        <Row
-          label={t("settings.defaultDir")}
-          control={
-            <div className="flex gap-2 items-center">
-              <span className="text-[12.5px] text-muted truncate max-w-[240px]">
-                {local.defaultGamesDir || "—"}
-              </span>
-              <Button size="sm" variant="outline" onClick={() => void pickDir()}>
-                <FolderOpen className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          }
-        />
-        <Row
-          label={t("settings.autoDetect")}
-          control={
-            <Toggle
-              checked={local.autoDetect}
-              onChange={(v) => {
-                local.set({ autoDetect: v });
-                void persistBackend({ auto_detect: v });
-              }}
-            />
-          }
-        />
         <Row
           label={t("settings.monitorInterval")}
           control={

@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Gamepad2, Heart, MoreHorizontal, Clock, Wifi } from "lucide-react";
+import { Check, Gamepad2, Heart, MoreHorizontal, Clock, Wifi } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/ContextMenu";
 import { Chip } from "@/components/ui/Chip";
 import { useT } from "@/hooks/useT";
@@ -7,12 +8,31 @@ import { useUiStore } from "@/stores/uiStore";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { cx, formatPlaytime, formatHMS, relativeTime } from "@/utils/format";
+import { canLaunch } from "@/utils/game";
 import type { Game } from "@/types";
 
 interface GameCardProps {
   game: Game;
   variant?: "grid" | "list" | "recent";
   onPlay?: (game: Game) => void;
+  selecting?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
+}
+
+function SelectMark({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className={cx(
+        "h-5 w-5 rounded-md grid place-items-center border transition",
+        checked
+          ? "bg-[var(--color-accent)] border-[var(--color-accent)] text-white"
+          : "bg-black/60 border-white/40 text-transparent backdrop-blur",
+      )}
+    >
+      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    </span>
+  );
 }
 
 export function buildGameMenu(game: Game, t: ReturnType<typeof useT>): ContextMenuItem[] {
@@ -28,7 +48,7 @@ export function buildGameMenu(game: Game, t: ReturnType<typeof useT>): ContextMe
       onSelect: () => {
         if (session.isRunning(game.id)) {
           void session.stop(game.id);
-        } else if (game.executablePath) {
+        } else if (canLaunch(game)) {
           void session
             .launch(game.id)
             .then(() => games.load(true))
@@ -93,7 +113,14 @@ export function buildGameMenu(game: Game, t: ReturnType<typeof useT>): ContextMe
   ];
 }
 
-export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
+export function GameCard({
+  game,
+  variant = "grid",
+  onPlay,
+  selecting,
+  selected,
+  onToggleSelect,
+}: GameCardProps) {
   const t = useT();
   const navigate = useNavigate();
   const running = useSessionStore((s) => s.running.some((r) => r.gameId === game.id));
@@ -102,6 +129,16 @@ export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
   const openEdit = useUiStore((s) => s.openEditGame);
 
   const menu = buildGameMenu(game, t);
+  const [brokenCover, setBrokenCover] = useState<string | null>(null);
+  const onCoverError = () => setBrokenCover(game.coverPath);
+
+  const go = () => {
+    if (selecting) {
+      onToggleSelect?.();
+      return;
+    }
+    navigate(`/game/${game.id}`);
+  };
 
   if (variant === "recent") {
     return (
@@ -111,12 +148,13 @@ export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
           className="group relative w-[168px] shrink-0 text-left"
         >
           <div className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-white/8 card-hover bg-white/5">
-            {game.coverPath ? (
+            {game.coverPath && brokenCover !== game.coverPath ? (
               <img
                 src={game.coverPath}
                 alt={game.title}
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                 loading="lazy"
+                onError={onCoverError}
               />
             ) : (
               <div className="h-full w-full grid place-items-center bg-gradient-to-br from-[#1a1f3a] to-[#0d1020]">
@@ -174,13 +212,27 @@ export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => navigate(`/game/${game.id}`)}
-          onKeyDown={(e) => e.key === "Enter" && navigate(`/game/${game.id}`)}
-          className="group flex items-center gap-4 px-3.5 py-3 rounded-2xl card card-hover cursor-pointer"
+          onClick={go}
+          onKeyDown={(e) => e.key === "Enter" && go()}
+          className={cx(
+            "group flex items-center gap-4 px-3.5 py-3 rounded-2xl card card-hover cursor-pointer",
+            selecting && (selected ? "ring-2 ring-[var(--color-accent)]" : "opacity-60"),
+          )}
         >
+          {selecting && (
+            <span className="shrink-0">
+              <SelectMark checked={!!selected} />
+            </span>
+          )}
           <div className="h-14 w-11 rounded-lg overflow-hidden bg-white/5 shrink-0">
-            {game.coverPath ? (
-              <img src={game.coverPath} alt="" className="h-full w-full object-cover" loading="lazy" />
+            {game.coverPath && brokenCover !== game.coverPath ? (
+              <img
+                src={game.coverPath}
+                alt=""
+                className="h-full w-full object-cover"
+                loading="lazy"
+                onError={onCoverError}
+              />
             ) : (
               <div className="h-full w-full grid place-items-center">
                 <Gamepad2 className="h-5 w-5 text-dim" />
@@ -234,18 +286,22 @@ export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
       <div
         role="button"
         tabIndex={0}
-        onClick={() => navigate(`/game/${game.id}`)}
-        onKeyDown={(e) => e.key === "Enter" && navigate(`/game/${game.id}`)}
-        className="group relative rounded-2xl overflow-hidden border border-white/8 bg-white/[0.03] card-hover cursor-pointer"
-        onDoubleClick={() => onPlay?.(game)}
+        onClick={go}
+        onKeyDown={(e) => e.key === "Enter" && go()}
+        className={cx(
+          "group relative rounded-2xl overflow-hidden border border-white/8 bg-white/[0.03] card-hover cursor-pointer",
+          selecting && (selected ? "ring-2 ring-[var(--color-accent)]" : "opacity-60"),
+        )}
+        onDoubleClick={() => !selecting && onPlay?.(game)}
       >
         <div className="aspect-[3/4] relative">
-          {game.coverPath ? (
+          {game.coverPath && brokenCover !== game.coverPath ? (
             <img
               src={game.coverPath}
               alt={game.title}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               loading="lazy"
+              onError={onCoverError}
             />
           ) : (
             <div className="h-full w-full grid place-items-center bg-gradient-to-br from-[#1a1f3a] to-[#0d1020]">
@@ -263,21 +319,27 @@ export function GameCard({ game, variant = "grid", onPlay }: GameCardProps) {
             </div>
           )}
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              void toggleFavorite(game.id);
-            }}
-            className={cx(
-              "absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-black/50 backdrop-blur transition",
-              game.isFavorite
-                ? "text-rose-400"
-                : "text-white/60 opacity-0 group-hover:opacity-100 hover:text-rose-400",
-            )}
-            aria-label={t("game.favorite")}
-          >
-            <Heart className={cx("h-3.5 w-3.5", game.isFavorite && "fill-current")} />
-          </button>
+          {selecting ? (
+            <span className="absolute top-2.5 right-2.5">
+              <SelectMark checked={!!selected} />
+            </span>
+          ) : (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                void toggleFavorite(game.id);
+              }}
+              className={cx(
+                "absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-black/50 backdrop-blur transition",
+                game.isFavorite
+                  ? "text-rose-400"
+                  : "text-white/60 opacity-0 group-hover:opacity-100 hover:text-rose-300",
+              )}
+              aria-label={t("game.favorite")}
+            >
+              <Heart className={cx("h-3.5 w-3.5", game.isFavorite && "fill-current")} />
+            </button>
+          )}
 
           <div className="absolute inset-x-3 bottom-2.5">
             <p className="text-[13px] font-semibold text-ink truncate leading-tight">

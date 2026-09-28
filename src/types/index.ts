@@ -145,13 +145,6 @@ export interface SearchResults {
   developers: string[];
 }
 
-export interface DiscoveredGame {
-  title: string;
-  path: string;
-  installDir: string;
-  platform: string;
-}
-
 export interface RunningGame {
   gameId: number;
   title: string;
@@ -193,4 +186,26 @@ export interface Friend {
   currentGame: string | null;
   lastSeen: string;
   status: string;
+}
+
+export interface StoreAccount {
+  provider: string;
+  accountId: string;
+  profileUrl: string;
+  personaName: string;
+  avatarUrl: string;
+  linkedAt: string;
+  lastSyncedAt: string | null;
+}
+
+export interface SteamSyncResult {
+  owned: number;
+  installed: number;
+  added: number;
+  updated: number;
+}
+
+export interface BulkDeleteResult {
+  deletedIds: number[];
+  skipped: number;
 }

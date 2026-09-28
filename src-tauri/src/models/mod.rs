@@ -158,19 +158,38 @@ pub struct SearchResults {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DiscoveredGame {
-    pub title: String,
-    pub path: String,
-    pub install_dir: String,
-    pub platform: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RunningGame {
     pub game_id: i64,
     pub title: String,
     pub pid: i64,
     pub started_at: String,
     pub cover_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoreAccount {
+    pub provider: String,
+    pub account_id: String,
+    pub profile_url: String,
+    pub persona_name: String,
+    pub avatar_url: String,
+    pub linked_at: String,
+    pub last_synced_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SteamSyncResult {
+    pub owned: i64,
+    pub installed: i64,
+    pub added: i64,
+    pub updated: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkDeleteResult {
+    pub deleted_ids: Vec<i64>,
+    pub skipped: i64,
 }

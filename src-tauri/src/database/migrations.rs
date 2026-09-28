@@ -3,10 +3,14 @@ use rusqlite::Connection;
 use crate::error::{AppError, AppResult};
 
 /// Ordered list of embedded migrations. New files are appended here.
-const MIGRATIONS: &[(&str, &str)] = &[(
-    "001_init",
-    include_str!("../../../migrations/001_init.sql"),
-)];
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("001_init", include_str!("../../../migrations/001_init.sql")),
+    ("002_steam", include_str!("../../../migrations/002_steam.sql")),
+    (
+        "003_achievements_key",
+        include_str!("../../../migrations/003_achievements_key.sql"),
+    ),
+];
 
 /// Applies all pending migrations inside a transaction-ish sequence.
 pub fn run(conn: &Connection) -> AppResult<()> {

@@ -281,3 +281,60 @@ pub fn unlock(conn: &Connection, id: i64) -> Result<Achievement, crate::error::A
     )
     .map_err(|_| crate::error::AppError::NotFound(format!("achievement {id}")))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::migrations;
+
+    fn memory_db() -> Connection {
+        let conn = Connection::open_in_memory().expect("memory db");
+        conn.pragma_update(None, "foreign_keys", "ON")
+            .expect("pragma");
+        migrations::run(&conn).expect("migrations");
+        conn
+    }
+
+    fn insert_game(conn: &Connection, title: &str) -> i64 {
+        conn.execute(
+            "INSERT INTO games (title, created_at, updated_at) VALUES (?1, ?2, ?2)",
+            rusqlite::params![title, "2026-01-01T00:00:00Z"],
+        )
+        .expect("insert game");
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn launch_achievement_is_created_for_every_game() {
+        let conn = memory_db();
+        for title in ["Alpha", "Beta"] {
+            let id = insert_game(&conn, title);
+            ensure_game_achievements(&conn, id, title).expect("ensure achievements");
+        }
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM achievements WHERE key = 'first_launch_game'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("count");
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn app_achievement_keys_stay_unique() {
+        let conn = memory_db();
+        conn.execute(
+            "INSERT INTO achievements (game_id, title, key, scope)
+             VALUES (NULL, 'Century', 'century', 'app')",
+            [],
+        )
+        .expect("first app achievement");
+        let duplicate = conn.execute(
+            "INSERT INTO achievements (game_id, title, key, scope)
+             VALUES (NULL, 'Century again', 'century', 'app')",
+            [],
+        );
+        assert!(duplicate.is_err());
+    }
+}

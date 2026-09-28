@@ -57,50 +57,6 @@ pub fn spawn_game(executable: &Path) -> AppResult<Child> {
     Ok(child)
 }
 
-/// Directories that commonly contain installed games on this platform.
-pub fn default_game_dirs() -> Vec<PathBuf> {
-    let mut dirs = Vec::new();
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_default();
-
-    #[cfg(target_os = "linux")]
-    {
-        dirs.push(home.join("Games"));
-        dirs.push(home.join(".steam/steam/steamapps/common"));
-        dirs.push(home.join(".local/share/Steam/steamapps/common"));
-        dirs.push(home.join("Heroic/legendaryPrefix"));
-        dirs.push(PathBuf::from("/usr/games"));
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        dirs.push(PathBuf::from("/Applications"));
-        dirs.push(home.join("Applications"));
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        for drive in ["C", "D", "E"] {
-            dirs.push(PathBuf::from(format!(
-                r"{drive}:\Program Files (x86)\Steam\steamapps\common"
-            )));
-            dirs.push(PathBuf::from(format!(
-                r"{drive}:\Program Files\Steam\steamapps\common"
-            )));
-            dirs.push(PathBuf::from(format!(
-                r"{drive}:\Program Files (x86)\Epic Games"
-            )));
-            dirs.push(PathBuf::from(format!(r"{drive}:\GOG Games")));
-            dirs.push(PathBuf::from(format!(r"{drive}:\Games")));
-        }
-    }
-
-    dirs.retain(|d| d.exists());
-    dirs
-}
-
 /// Validates that the path points to something launchable.
 pub fn validate_executable(path: &str) -> AppResult<PathBuf> {
     if path.trim().is_empty() {

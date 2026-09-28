@@ -1,8 +1,8 @@
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::error::{AppError, AppResult};
-use crate::models::{DiscoveredGame, SearchResults};
-use crate::services::{discovery, export};
+use crate::models::SearchResults;
+use crate::services::export;
 use crate::AppState;
 
 #[tauri::command]
@@ -62,20 +62,6 @@ pub fn select_any_file(app: AppHandle) -> AppResult<Option<String>> {
     use tauri_plugin_dialog::DialogExt;
     let picked = app.dialog().file().blocking_pick_file();
     Ok(picked.and_then(|f| f.into_path().ok()).map(|p| p.to_string_lossy().to_string()))
-}
-
-#[tauri::command]
-pub fn discover_games(dirs: Vec<String>) -> AppResult<Vec<DiscoveredGame>> {
-    let dirs = if dirs.is_empty() {
-        crate::game::launcher::default_game_dirs()
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect()
-    } else {
-        dirs
-    };
-    log::info!("Discovering games in {} dirs", dirs.len());
-    Ok(discovery::discover(&dirs))
 }
 
 #[tauri::command]
@@ -229,12 +215,4 @@ pub fn open_path(app: AppHandle, path: String) -> AppResult<()> {
     }
     let _ = app;
     Ok(())
-}
-
-#[tauri::command]
-pub fn get_default_game_dirs() -> AppResult<Vec<String>> {
-    Ok(crate::game::launcher::default_game_dirs()
-        .iter()
-        .map(|p| p.to_string_lossy().to_string())
-        .collect())
 }

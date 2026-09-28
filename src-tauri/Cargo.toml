@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
@@ -24,7 +25,11 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 sysinfo = "0.33"
 log = { version = "0.4", features = ["std"] }
-walkdir = "2"
+tokio = { version = "1", features = ["time"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "query", "system-proxy", "charset", "http2"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.56"
 
 [profile.release]
 codegen-units = 1

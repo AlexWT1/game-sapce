@@ -15,9 +15,7 @@ interface SettingsState {
   demoMode: boolean;
   launchOnStartup: boolean;
   minimizeToTray: boolean;
-  autoDetect: boolean;
   monitoringInterval: number;
-  defaultGamesDir: string;
   notifyAchievement: boolean;
   notifyGameStart: boolean;
   notifyFriendOnline: boolean;
@@ -49,9 +47,7 @@ export const useSettingsStore = create<SettingsState>()(
       demoMode: true,
       launchOnStartup: false,
       minimizeToTray: true,
-      autoDetect: true,
       monitoringInterval: 2,
-      defaultGamesDir: "",
       notifyAchievement: true,
       notifyGameStart: true,
       notifyFriendOnline: true,
@@ -76,9 +72,7 @@ export const useSettingsStore = create<SettingsState>()(
         demoMode: s.demoMode,
         launchOnStartup: s.launchOnStartup,
         minimizeToTray: s.minimizeToTray,
-        autoDetect: s.autoDetect,
         monitoringInterval: s.monitoringInterval,
-        defaultGamesDir: s.defaultGamesDir,
         notifyAchievement: s.notifyAchievement,
         notifyGameStart: s.notifyGameStart,
         notifyFriendOnline: s.notifyFriendOnline,

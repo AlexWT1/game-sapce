@@ -8,7 +8,8 @@ mod process;
 mod services;
 mod tray;
 
-use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
 
 use tauri::menu::MenuItem;
 use tauri::{Emitter, Manager};
@@ -20,10 +21,20 @@ pub struct AppState {
     pub db: Database,
     pub active: ActiveMap,
     pub tray_session_item: Mutex<Option<MenuItem<tauri::Wry>>>,
+    /// Guards `sync_steam_library` against a second overlapping run.
+    pub steam_syncing: Arc<AtomicBool>,
 }
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            log::info!("Second instance detected — focusing existing window");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
@@ -42,6 +53,7 @@ pub fn run() {
                 db,
                 active: Default::default(),
                 tray_session_item: Mutex::new(None),
+                steam_syncing: Arc::new(AtomicBool::new(false)),
             });
 
             tray::setup(app.handle())?;
@@ -71,11 +83,11 @@ pub fn run() {
             commands::games::create_game,
             commands::games::update_game,
             commands::games::delete_game,
+            commands::games::delete_games,
             commands::games::toggle_favorite,
             commands::games::set_game_executable,
             commands::games::get_game_theme,
             commands::games::set_game_theme,
-            commands::games::game_exists,
             commands::launch::launch_game,
             commands::launch::stop_game,
             commands::launch::get_running_games,
@@ -85,6 +97,10 @@ pub fn run() {
             commands::launch::get_game_sessions,
             commands::stats::get_statistics,
             commands::stats::get_game_statistics,
+            commands::store::get_store_account,
+            commands::store::link_steam_account,
+            commands::store::unlink_steam_account,
+            commands::store::sync_steam_library,
             commands::achievements::get_achievements,
             commands::achievements::unlock_achievement,
             commands::settings::get_settings,
@@ -97,13 +113,11 @@ pub fn run() {
             commands::system::select_game_executable,
             commands::system::select_game_directory,
             commands::system::select_any_file,
-            commands::system::discover_games,
             commands::system::export_data,
             commands::system::import_data,
             commands::system::reset_data,
             commands::system::search_all,
             commands::system::open_path,
-            commands::system::get_default_game_dirs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Game Space");

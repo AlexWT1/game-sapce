@@ -19,6 +19,11 @@ pub fn demo_disabled(conn: &Connection) -> Result<bool, rusqlite::Error> {
     Ok(mode.as_deref() == Some("off"))
 }
 
+pub fn read_setting(conn: &Connection, key: &str) -> Result<Option<String>, rusqlite::Error> {
+    conn.query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| r.get(0))
+        .optional()
+}
+
 #[tauri::command]
 pub fn get_settings(state: State<'_, AppState>) -> AppResult<SettingsMap> {
     state.db.with(|conn| {
@@ -66,13 +71,5 @@ pub fn update_settings(
 
 #[tauri::command]
 pub fn get_setting(state: State<'_, AppState>, key: String) -> AppResult<Option<String>> {
-    state.db.with(|conn| {
-        conn.query_row(
-            "SELECT value FROM settings WHERE key = ?1",
-            [key],
-            |r| r.get(0),
-        )
-        .optional()
-        .map_err(Into::into)
-    })
+    state.db.with(|conn| read_setting(conn, &key).map_err(Into::into))
 }
