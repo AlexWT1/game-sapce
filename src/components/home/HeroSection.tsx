@@ -142,12 +142,12 @@ export function HeroSection() {
                 color="var(--game-accent, #a78bfa)"
                 height={5}
               />
-              <div className="mt-3 pt-2.5 border-t border-white/8 flex items-center justify-between text-[12px]">
+              <div className="mt-3 pt-2.5 border-t border-white/8 flex flex-col gap-1.5 text-[12px]">
                 <span className="text-muted flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   {t("home.playTime")}
                 </span>
-                <span className="text-ink font-semibold tabular-nums">
+                <span className="text-ink font-semibold tabular-nums ml-5">
                   {formatPlaytime(hero.totalPlaytimeSeconds)}
                 </span>
               </div>
