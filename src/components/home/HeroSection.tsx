@@ -79,7 +79,7 @@ export function HeroSection() {
           ))}
         </div>
 
-        <div className="relative h-full flex flex-col justify-between p-7 max-w-[640px]">
+        <div className="relative h-full flex flex-col justify-between p-7 z-10">
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span
