@@ -79,7 +79,7 @@ export function HeroSection() {
           ))}
         </div>
 
-        <div className="relative h-full flex flex-col justify-between p-7 pb-10 z-10">
+        <div className="relative h-full flex flex-col justify-center gap-8 p-7 z-10">
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span
@@ -128,21 +128,25 @@ export function HeroSection() {
             </button>
 
             <div className="ml-auto hidden sm:block glass rounded-2xl px-4 py-3 min-w-[170px]">
-              <div className="flex items-center justify-between text-[12px] mb-1.5">
-                <span className="text-muted flex items-center gap-1.5">
-                  <Trophy className="h-3.5 w-3.5 text-amber-400" />
-                  {t("home.achievements")}
-                </span>
-                <span className="text-ink font-semibold tabular-nums">
-                  {unlocked} / {gameAch.length}
-                </span>
-              </div>
-              <ProgressBar
-                value={percent(unlocked, gameAch.length || 1)}
-                color="var(--game-accent, #a78bfa)"
-                height={5}
-              />
-              <div className="mt-3 pt-2.5 border-t border-white/8 flex flex-col gap-1.5 text-[12px]">
+              {gameAch.length > 0 && (
+                <>
+                  <div className="flex items-center justify-between text-[12px] mb-1.5">
+                    <span className="text-muted flex items-center gap-1.5">
+                      <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                      {t("home.achievements")}
+                    </span>
+                    <span className="text-ink font-semibold tabular-nums">
+                      {unlocked} / {gameAch.length}
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={percent(unlocked, gameAch.length || 1)}
+                    color="var(--game-accent, #a78bfa)"
+                    height={5}
+                  />
+                </>
+              )}
+              <div className={`${gameAch.length > 0 ? "mt-3 pt-2.5 border-t border-white/8 " : ""}flex flex-col gap-1.5 text-[12px]`}>
                 <span className="text-muted flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5" />
                   {t("home.playTime")}
