@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  ChevronsLeft,
   Clock,
   Gamepad2,
   Heart,
@@ -50,7 +49,6 @@ const FILTERS: Array<{ key: GameFilter; labelKey: Parameters<ReturnType<typeof u
 export function Sidebar() {
   const t = useT();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggle = useUiStore((s) => s.toggleSidebar);
   const games = useGamesStore((s) => s.games);
   const navigate = useNavigate();
   const location = useLocation();
@@ -224,25 +222,6 @@ export function Sidebar() {
         </div>
       </div>
       </aside>
-
-      <button
-        onClick={toggle}
-        className={cx(
-          "absolute z-40 -right-3 p-1.5 rounded-full text-dim",
-          "bg-[#12152b] border border-white/10 shadow-lg",
-          "hover:text-ink hover:bg-[#1a1e3a] transition",
-          "top-[calc(var(--topbar-height)/2)] -translate-y-1/2",
-        )}
-        aria-label="Toggle sidebar"
-        aria-expanded={!collapsed}
-      >
-        <ChevronsLeft
-          className={cx(
-            "h-4 w-4 transition-transform duration-300 ease-in-out",
-            collapsed && "rotate-180",
-          )}
-        />
-      </button>
     </div>
   );
 }
