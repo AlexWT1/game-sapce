@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useT, useLocaleCode } from "@/hooks/useT";
 import { useAchievementsStore } from "@/stores/achievementsStore";
 import { cx, formatDateTime, percent } from "@/utils/format";
-import type { Rarity } from "@/types";
+import type { Achievement, Rarity } from "@/types";
 
 type ScopeFilter = "all" | "app" | "game";
 
@@ -170,7 +170,7 @@ export function AchievementsPage() {
                         color="#6b7189"
                       />
                       <span className="text-[11px] text-dim tabular-nums">
-                        {a.progressCurrent} / {a.progressTarget}
+                        {progressLabel(a)}
                       </span>
                     </div>
                   )}
@@ -182,6 +182,13 @@ export function AchievementsPage() {
       </section>
     </div>
   );
+}
+
+function progressLabel(a: Achievement) {
+  if (a.key?.startsWith("playtime_")) {
+    return `${a.progressCurrent} ч / ${a.progressTarget} ч`;
+  }
+  return `${a.progressCurrent} / ${a.progressTarget}`;
 }
 
 function rarityStyles(rarity: string) {
