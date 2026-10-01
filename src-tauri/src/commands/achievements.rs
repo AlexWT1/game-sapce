@@ -18,14 +18,16 @@ pub fn get_achievements(
     achievements::evaluate(&app);
     state.db.with(|conn| {
         let demo_off = super::settings::demo_disabled(conn)?;
-        if demo_off {
-            return Ok(Vec::new());
-        }
+        let demo_filter = if demo_off {
+            " AND (a.game_id IS NULL OR g.source != 'Demo')"
+        } else {
+            ""
+        };
         let sql = match game_id {
             Some(_) => format!(
-                "{SELECT} WHERE a.game_id = ?1 ORDER BY a.unlocked DESC, a.id"
+                "{SELECT} WHERE a.game_id = ?1{demo_filter} ORDER BY a.unlocked DESC, a.id"
             ),
-            None => format!("{SELECT} WHERE 1=1 ORDER BY a.unlocked DESC, a.scope, a.id"),
+            None => format!("{SELECT} WHERE 1=1{demo_filter} ORDER BY a.unlocked DESC, a.scope, a.id"),
         };
         let mut stmt = conn.prepare(&sql)?;
         let rows = match game_id {

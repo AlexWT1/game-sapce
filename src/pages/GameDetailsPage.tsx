@@ -48,7 +48,7 @@ export function GameDetailsPage() {
   const live = useSessionStore((s) => s.liveSeconds[gameId] ?? 0);
   const gameStats = useStatisticsStore((s) => s.gameStats[gameId]);
   const loadGameStats = useStatisticsStore((s) => s.loadGame);
-  const achievements = useAchievementsStore((s) => s.items);
+  const achievements = useAchievementsStore((s) => s.byGame[gameId]);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const [sessions, setSessions] = useState<
@@ -74,10 +74,7 @@ export function GameDetailsPage() {
     void useAchievementsStore.getState().load(gameId, true);
   }, [gameId, loadGameStats, running]);
 
-  const gameAch = useMemo(
-    () => achievements.filter((a) => a.gameId === gameId),
-    [achievements, gameId],
-  );
+  const gameAch = useMemo(() => achievements ?? [], [achievements]);
   const unlocked = gameAch.filter((a) => a.unlocked).length;
 
   if (!game) {
