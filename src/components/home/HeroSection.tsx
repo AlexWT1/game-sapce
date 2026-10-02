@@ -47,7 +47,7 @@ export function HeroSection() {
         initial={{ opacity: 1, y: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.2, 0.7, 0.3, 1] }}
-        className="relative w-full h-[300px] rounded-3xl overflow-hidden border border-white/10 vignette"
+        className="relative w-full min-h-[300px] rounded-3xl overflow-hidden border border-white/10 vignette flex"
         onClick={() => navigate(`/game/${hero.id}`)}
         role="button"
         tabIndex={0}
@@ -79,7 +79,7 @@ export function HeroSection() {
           ))}
         </div>
 
-        <div className="relative h-full flex flex-col justify-center gap-8 p-7 z-10">
+        <div className="relative flex-1 flex flex-col justify-center gap-7 p-7 z-10">
           <div>
             <div className="flex items-center gap-3 mb-3">
               <span
