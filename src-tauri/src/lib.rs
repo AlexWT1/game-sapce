@@ -46,6 +46,8 @@ pub fn run() {
             db.with(|conn| {
                 game::seed::seed_if_empty(conn)?;
                 game::achievements::ensure_app_achievements(conn)?;
+                // Standard per-game set (launch + 10/100/1000 h) for older libraries.
+                game::achievements::ensure_all_game_achievements(conn)?;
                 Ok::<(), error::AppError>(())
             })?;
 

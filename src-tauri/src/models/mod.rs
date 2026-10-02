@@ -76,6 +76,8 @@ pub struct Achievement {
     pub progress_current: i64,
     pub progress_target: i64,
     pub scope: String,
+    /// Stable rule key, e.g. `first_launch_game`, `playtime_100h`, NULL for demo rows.
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

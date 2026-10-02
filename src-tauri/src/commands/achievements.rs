@@ -6,7 +6,7 @@ use crate::models::Achievement;
 use crate::AppState;
 
 pub const SELECT: &str = "SELECT a.id, a.game_id, g.title, a.title, a.description, a.icon_path,
-    a.rarity, a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope
+    a.rarity, a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope, a.key
     FROM achievements a LEFT JOIN games g ON g.id = a.game_id";
 
 #[tauri::command]

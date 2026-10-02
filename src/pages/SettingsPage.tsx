@@ -237,25 +237,27 @@ export function SettingsPage() {
             />
           }
         />
-        <Row
-          label={t("settings.demoMode")}
-          control={
-            <Toggle
-              checked={local.demoMode}
-              onChange={(v) => {
-                local.set({ demoMode: v });
-                void persistBackend({ demo_mode: v ? "on" : "off" }).then(async () => {
-                  const { useGamesStore } = await import("@/stores/gamesStore");
-                  const { useStatisticsStore } = await import("@/stores/statisticsStore");
-                  const { useAchievementsStore } = await import("@/stores/achievementsStore");
-                  await useGamesStore.getState().load(true);
-                  await useStatisticsStore.getState().load(true);
-                  await useAchievementsStore.getState().load(null, true);
-                });
-              }}
-            />
-          }
-        />
+        {import.meta.env.DEV && (
+          <Row
+            label={t("settings.demoMode")}
+            control={
+              <Toggle
+                checked={local.demoMode}
+                onChange={(v) => {
+                  local.set({ demoMode: v });
+                  void persistBackend({ demo_mode: v ? "on" : "off" }).then(async () => {
+                    const { useGamesStore } = await import("@/stores/gamesStore");
+                    const { useStatisticsStore } = await import("@/stores/statisticsStore");
+                    const { useAchievementsStore } = await import("@/stores/achievementsStore");
+                    await useGamesStore.getState().load(true);
+                    await useStatisticsStore.getState().load(true);
+                    await useAchievementsStore.getState().load(null, true);
+                  });
+                }}
+              />
+            }
+          />
+        )}
       </Section>
 
       <Section icon={<Bell className="h-4 w-4" />} title={t("settings.notifications")}>

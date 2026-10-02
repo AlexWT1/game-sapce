@@ -79,6 +79,8 @@ export interface Achievement {
   progressCurrent: number;
   progressTarget: number;
   scope: "game" | "app" | string;
+  /** Stable rule key (e.g. playtime_10h); null for demo achievements. */
+  key: string | null;
 }
 
 export interface GameTheme {

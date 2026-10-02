@@ -185,7 +185,8 @@ mod tests {
                 |r| r.get(0),
             )
             .expect("achievements");
-        assert_eq!(achievements, 1);
+        // Standard set: launch + 10/100/1000 hours.
+        assert_eq!(achievements, 4);
     }
 
     #[test]

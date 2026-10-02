@@ -161,11 +161,10 @@ fn duration_by_period(
 ) -> AppResult<Vec<PlaytimeByDay>> {
     // Group by day for "days", by ISO week start for "weeks", by month for "months".
     let (bucket, back): (&str, &str) = match unit {
-        "weeks" => ("date(started_at, '-' || ((strftime('%w', started_at) + 6) % 7) || ' days')", "7 days"),
-        "months" => ("date(started_at, 'start of month')", "1 month"),
-        _ => ("date(started_at)", "1 day"),
+        "weeks" => ("date(started_at, '-' || ((strftime('%w', started_at) + 6) % 7) || ' days')", "weeks"),
+        "months" => ("date(started_at, 'start of month')", "months"),
+        _ => ("date(started_at)", "days"),
     };
-
     let sql = if demo_off {
         format!(
             "SELECT {bucket} AS bucket, COALESCE(SUM(gs.duration_seconds), 0) AS secs
