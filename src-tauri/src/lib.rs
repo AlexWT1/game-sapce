@@ -105,6 +105,8 @@ pub fn run() {
             commands::store::sync_steam_library,
             commands::achievements::get_achievements,
             commands::achievements::unlock_achievement,
+            commands::igdb::igdb_search_games,
+            commands::igdb::igdb_get_game,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_setting,

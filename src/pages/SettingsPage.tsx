@@ -10,6 +10,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Toggle } from "@/components/ui/Toggle";
 import { Chip } from "@/components/ui/Chip";
@@ -27,9 +28,18 @@ export function SettingsPage() {
   const askConfirm = useUiStore((s) => s.askConfirm);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [igdbClientId, setIgdbClientId] = useState("");
+  const [igdbClientSecret, setIgdbClientSecret] = useState("");
 
   useEffect(() => {
     void api.getAppInfo().then(setInfo).catch(() => setInfo(null));
+    void api
+      .getSettings()
+      .then((settings) => {
+        setIgdbClientId(String(settings.igdb_client_id ?? ""));
+        setIgdbClientSecret(String(settings.igdb_client_secret ?? ""));
+      })
+      .catch(() => undefined);
   }, []);
 
   const persistBackend = async (patch: SettingsMap) => {
@@ -40,6 +50,14 @@ export function SettingsPage() {
     } catch (e) {
       pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
     }
+  };
+
+  const onSaveIgdb = async () => {
+    await persistBackend({
+      igdb_client_id: igdbClientId.trim(),
+      igdb_client_secret: igdbClientSecret.trim(),
+    });
+    pushToast({ kind: "success", title: t("settings.igdb.saved") });
   };
 
   const onExport = async () => {
@@ -258,6 +276,34 @@ export function SettingsPage() {
             }
           />
         )}
+        <div className="border-t border-white/[0.06] pt-4 space-y-3">
+          <span className="block text-[12px] font-semibold text-ink uppercase tracking-wide">
+            IGDB
+          </span>
+          <span className="block text-[12px] text-dim leading-relaxed">
+            {t("settings.igdb.hint")}
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label={t("settings.igdb.clientId")}
+              value={igdbClientId}
+              onChange={(e) => setIgdbClientId(e.target.value)}
+              placeholder="abc123"
+            />
+            <Input
+              label={t("settings.igdb.clientSecret")}
+              type="password"
+              value={igdbClientSecret}
+              onChange={(e) => setIgdbClientSecret(e.target.value)}
+              placeholder="def456"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => void onSaveIgdb()}>
+              {t("common.save")}
+            </Button>
+          </div>
+        </div>
       </Section>
 
       <Section icon={<Bell className="h-4 w-4" />} title={t("settings.notifications")}>

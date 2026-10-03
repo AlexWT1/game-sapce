@@ -195,3 +195,17 @@ pub struct BulkDeleteResult {
     pub deleted_ids: Vec<i64>,
     pub skipped: i64,
 }
+
+/// Metadata fetched from IGDB for the "Load" button in the add-game form.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IgdbGameMeta {
+    pub igdb_id: i64,
+    pub name: String,
+    pub summary: String,
+    pub release_year: Option<i32>,
+    pub developer: String,
+    pub publisher: String,
+    pub genres: Vec<String>,
+    pub cover_url: Option<String>,
+}
