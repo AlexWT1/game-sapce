@@ -46,6 +46,8 @@ pub fn run() {
             db.with(|conn| {
                 game::seed::seed_if_empty(conn)?;
                 game::achievements::ensure_app_achievements(conn)?;
+                // Standard per-game set (launch + 10/100/1000 h) for older libraries.
+                game::achievements::ensure_all_game_achievements(conn)?;
                 Ok::<(), error::AppError>(())
             })?;
 
@@ -103,6 +105,8 @@ pub fn run() {
             commands::store::sync_steam_library,
             commands::achievements::get_achievements,
             commands::achievements::unlock_achievement,
+            commands::igdb::igdb_search_games,
+            commands::igdb::igdb_get_game,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_setting,

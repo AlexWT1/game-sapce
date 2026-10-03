@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -7,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useT } from "@/hooks/useT";
 import { api } from "@/services/api";
-import type { GameInput } from "@/types";
+import type { GameInput, IgdbGameMeta } from "@/types";
 
 const GENRES = [
   "RPG",
@@ -21,6 +22,27 @@ const GENRES = [
   "Инди",
   "Шутер",
 ];
+
+/** IGDB genre names (EN) → GENRES list values. Unmatched genres are skipped. */
+const IGDB_GENRE_MAP: Record<string, string> = {
+  "Role-playing (RPG)": "RPG",
+  Shooter: "Шутер",
+  Adventure: "Приключения",
+  Strategy: "Стратегия",
+  "Turn-based strategy (TBS)": "Стратегия",
+  "Real Time Strategy (RTS)": "Стратегия",
+  Tactical: "Стратегия",
+  Simulator: "Симулятор",
+  Simulation: "Симулятор",
+  Racing: "Гонки",
+  Sport: "Спорт",
+  Indie: "Инди",
+  Platform: "Экшен",
+  "Hack and slash": "Экшен",
+  "Beat 'em up": "Экшен",
+  Fighting: "Экшен",
+  Arcade: "Экшен",
+};
 
 export function GameFormModal() {
   const t = useT();
@@ -48,6 +70,8 @@ export function GameFormModal() {
     coverPath: "",
   });
   const [busy, setBusy] = useState(false);
+  const [igdbBusy, setIgdbBusy] = useState(false);
+  const [igdbResults, setIgdbResults] = useState<IgdbGameMeta[] | null>(null);
 
   useEffect(() => {
     if (editing) {
@@ -62,6 +86,7 @@ export function GameFormModal() {
         platform: editing.platform,
         coverPath: editing.coverPath ?? "",
       });
+      setIgdbResults(null);
     } else if (open) {
       setForm({
         title: prefill.title ?? "",
@@ -74,12 +99,57 @@ export function GameFormModal() {
         platform: "PC",
         coverPath: "",
       });
+      setIgdbResults(null);
     }
   }, [open, editing, prefill]);
 
   const close = () => {
     if (editing) openEdit(null);
     closeAdd();
+  };
+
+  /** Fills form fields from IGDB metadata. */
+  const applyMeta = (m: IgdbGameMeta) => {
+    setForm((f) => ({
+      ...f,
+      title: m.name || f.title,
+      description: m.summary || f.description,
+      developer: m.developer || f.developer,
+      publisher: m.publisher || f.publisher,
+      genre: m.genres.map((g) => IGDB_GENRE_MAP[g]).find(Boolean) ?? f.genre,
+      releaseYear: m.releaseYear ? String(m.releaseYear) : f.releaseYear,
+      coverPath: m.coverUrl || f.coverPath,
+    }));
+    setIgdbResults(null);
+  };
+
+  /** Searches IGDB by the current title and fills or disambiguates. */
+  const fetchMeta = async () => {
+    const query = form.title.trim();
+    if (!query) {
+      pushToast({ kind: "error", title: t("toast.error"), body: t("game.title") });
+      return;
+    }
+    setIgdbBusy(true);
+    try {
+      const results = await api.igdbSearchGames(query);
+      if (results.length === 0) {
+        setIgdbResults(null);
+        pushToast({ kind: "info", title: t("game.fetchMetaNone") });
+      } else {
+        const [first] = results;
+        if (first && results.length === 1) {
+          applyMeta(first);
+          pushToast({ kind: "success", title: t("game.fetchMetaDone"), body: first.name });
+        } else {
+          setIgdbResults(results);
+        }
+      }
+    } catch (e) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
+    } finally {
+      setIgdbBusy(false);
+    }
   };
 
   const pickExe = async () => {
@@ -143,12 +213,50 @@ export function GameFormModal() {
       }
     >
       <div className="space-y-4">
-        <Input
-          label={t("game.title")}
-          placeholder="Cyberpunk 2077"
-          value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-        />
+        <div>
+          <span className="block text-[12px] font-medium text-muted uppercase tracking-wide mb-1.5">
+            {t("game.title")}
+          </span>
+          <div className="flex gap-2">
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="Cyberpunk 2077"
+              className="flex-1 h-10 px-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm text-ink placeholder:text-dim outline-none focus:border-[var(--color-accent)]/60"
+            />
+            <Button
+              variant="secondary"
+              loading={igdbBusy}
+              onClick={() => void fetchMeta()}
+              title={t("game.igdbHint")}
+            >
+              <Download className="h-4 w-4" />
+              {igdbBusy ? t("game.fetchMetaLoading") : t("game.fetchMeta")}
+            </Button>
+          </div>
+          {igdbResults && (
+            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2 space-y-1">
+              <span className="block text-[11px] text-dim uppercase tracking-wide px-1">
+                {t("game.igdbPick")}
+              </span>
+              {igdbResults.map((r) => (
+                <button
+                  key={r.igdbId}
+                  type="button"
+                  onClick={() => applyMeta(r)}
+                  className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-white/[0.06] transition"
+                >
+                  <span className="block text-[13px] text-ink">{r.name}</span>
+                  <span className="block text-[11.5px] text-dim">
+                    {r.releaseYear ?? "—"}
+                    {r.developer ? ` · ${r.developer}` : ""}
+                    {r.genres[0] ? ` · ${r.genres[0]}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div>
           <span className="block text-[12px] font-medium text-muted uppercase tracking-wide mb-1.5">

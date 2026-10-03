@@ -42,6 +42,24 @@ pub fn get_settings(state: State<'_, AppState>) -> AppResult<SettingsMap> {
     })
 }
 
+fn clear_demo_data(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        "DELETE FROM achievements WHERE game_id IN (SELECT id FROM games WHERE source = 'Demo')",
+        [],
+    )?;
+    conn.execute(
+        "DELETE FROM game_sessions WHERE game_id IN (SELECT id FROM games WHERE source = 'Demo')",
+        [],
+    )?;
+    conn.execute(
+        "DELETE FROM game_themes WHERE game_id IN (SELECT id FROM games WHERE source = 'Demo')",
+        [],
+    )?;
+    conn.execute("DELETE FROM games WHERE source = 'Demo'", [])?;
+    conn.execute("DELETE FROM settings WHERE key = 'demo_seeded'", [])?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn update_settings(
     state: State<'_, AppState>,
@@ -60,6 +78,12 @@ pub fn update_settings(
             )?;
         }
         if settings.contains_key("demo_mode") {
+            let new_mode = settings.get("demo_mode").and_then(|v| v.as_str()).unwrap_or("on");
+            if new_mode == "off" {
+                if let Err(e) = clear_demo_data(conn) {
+                    log::warn!("clear demo data failed: {e}");
+                }
+            }
             if let Err(e) = crate::game::seed::seed_if_empty(conn) {
                 log::warn!("seed after demo_mode update failed: {e}");
             }

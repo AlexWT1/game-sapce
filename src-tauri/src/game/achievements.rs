@@ -152,6 +152,8 @@ pub fn evaluate(app: &AppHandle) -> Vec<Achievement> {
 
     let result = state.db.with(|conn| {
         ensure_app_achievements(conn).map_err(crate::error::AppError::Database)?;
+        // Heal libraries that predate the per-game achievement set.
+        ensure_all_game_achievements(conn).map_err(crate::error::AppError::Database)?;
         let mut newly = Vec::new();
 
         for rule in APP_RULES {
@@ -189,11 +191,8 @@ pub fn evaluate(app: &AppHandle) -> Vec<Achievement> {
                ) WHERE game_id IS NOT NULL AND progress_target <= 1",
             [],
         )?;
-        conn.execute(
-            "UPDATE achievements SET unlocked = 1, unlocked_at = COALESCE(unlocked_at, ?1)
-             WHERE game_id IS NOT NULL AND unlocked = 0 AND progress_current >= progress_target",
-            [chrono::Utc::now().to_rfc3339()],
-        )?;
+        // Hour-based achievements track played hours for progress display.
+        newly.extend(refresh_and_unlock(conn)?);
 
         Ok(newly)
     });
@@ -218,11 +217,43 @@ pub fn evaluate(app: &AppHandle) -> Vec<Achievement> {
     }
 }
 
+/// Refreshes per-game achievement progress and unlocks everything whose
+/// target is reached (launch count and played hours). Returns unlocked ids.
+pub fn refresh_and_unlock(conn: &Connection) -> Result<Vec<i64>, rusqlite::Error> {
+    // Launch-based progress (targets of 1: "Первый запуск").
+    conn.execute(
+        "UPDATE achievements SET progress_current = (
+             SELECT launch_count FROM games WHERE games.id = achievements.game_id
+           ) WHERE game_id IS NOT NULL AND progress_target <= 1",
+        [],
+    )?;
+    // Hour-based achievements track played hours for progress display.
+    conn.execute(
+        "UPDATE achievements SET progress_current = (
+             SELECT total_playtime_seconds / 3600 FROM games
+              WHERE games.id = achievements.game_id
+           ) WHERE game_id IS NOT NULL AND key LIKE 'playtime_%' AND unlocked = 0",
+        [],
+    )?;
+    let now = chrono::Utc::now().to_rfc3339();
+    let mut stmt = conn.prepare(
+        "UPDATE achievements SET unlocked = 1, unlocked_at = COALESCE(unlocked_at, ?1)
+         WHERE game_id IS NOT NULL AND unlocked = 0
+           AND progress_current >= progress_target
+         RETURNING id",
+    )?;
+    let ids = stmt
+        .query_map([now], |r| r.get::<_, i64>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(stmt);
+    Ok(ids)
+}
+
 fn get_by_id(state: &AppState, id: i64) -> Result<Achievement, crate::error::AppError> {
     state.db.with(|conn| {
         conn.query_row(
             "SELECT a.id, a.game_id, g.title, a.title, a.description, a.icon_path, a.rarity,
-                    a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope
+                    a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope, a.key
              FROM achievements a LEFT JOIN games g ON g.id = a.game_id
              WHERE a.id = ?1",
             [id],
@@ -246,10 +277,19 @@ pub fn map_achievement(row: &rusqlite::Row<'_>) -> rusqlite::Result<Achievement>
         progress_current: row.get(9)?,
         progress_target: row.get(10)?,
         scope: row.get(11)?,
+        key: row.get(12)?,
     })
 }
 
-/// Creates a launch achievement for a newly added game.
+/// Per-game playtime achievement ladder (hours, in-game title, rarity).
+const GAME_HOUR_ACHIEVEMENTS: &[(&str, &str, &str, i64)] = &[
+    ("playtime_10h", "Разогрев", "Common", 10),
+    ("playtime_100h", "Втянулся", "Rare", 100),
+    ("playtime_1000h", "Живая легенда", "Legendary", 1000),
+];
+
+/// Creates the standard per-game achievement set for a newly added game:
+/// launch + 10/100/1000 hours. Idempotent.
 pub fn ensure_game_achievements(
     conn: &Connection,
     game_id: i64,
@@ -261,6 +301,28 @@ pub fn ensure_game_achievements(
          WHERE NOT EXISTS (SELECT 1 FROM achievements WHERE game_id = ?1 AND key = 'first_launch_game')",
         rusqlite::params![game_id, title],
     )?;
+    for (key, ach_title, rarity, hours) in GAME_HOUR_ACHIEVEMENTS {
+        conn.execute(
+            "INSERT INTO achievements (game_id, title, description, rarity, scope, key, progress_target)
+             SELECT ?1, ?2, 'Проведи ' || ?3 || ' часов в игре «' || ?4 || '»', ?5, 'game', ?6, ?7
+             WHERE NOT EXISTS (SELECT 1 FROM achievements WHERE game_id = ?1 AND key = ?6)",
+            rusqlite::params![game_id, ach_title, hours, title, rarity, key, hours],
+        )?;
+    }
+    Ok(())
+}
+
+/// Backfills the standard achievement set for every game that lacks it
+/// (e.g. libraries created before the feature existed).
+pub fn ensure_all_game_achievements(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let rows: Vec<(i64, String)> = {
+        let mut stmt = conn.prepare("SELECT id, title FROM games")?;
+        let mapped = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?;
+        mapped.collect::<Result<Vec<_>, _>>()?
+    };
+    for (id, title) in rows {
+        ensure_game_achievements(conn, id, &title)?;
+    }
     Ok(())
 }
 
@@ -274,7 +336,7 @@ pub fn unlock(conn: &Connection, id: i64) -> Result<Achievement, crate::error::A
     .map_err(crate::error::AppError::Database)?;
     conn.query_row(
         "SELECT a.id, a.game_id, g.title, a.title, a.description, a.icon_path, a.rarity,
-                a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope
+                a.unlocked, a.unlocked_at, a.progress_current, a.progress_target, a.scope, a.key
          FROM achievements a LEFT JOIN games g ON g.id = a.game_id WHERE a.id = ?1",
         [id],
         map_achievement,
@@ -336,5 +398,90 @@ mod tests {
             [],
         );
         assert!(duplicate.is_err());
+    }
+
+    #[test]
+    fn standard_set_has_four_achievements_and_is_idempotent() {
+        let conn = memory_db();
+        let id = insert_game(&conn, "Alpha");
+        ensure_game_achievements(&conn, id, "Alpha").expect("first ensure");
+        ensure_game_achievements(&conn, id, "Alpha").expect("second ensure");
+
+        let total: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM achievements WHERE game_id = ?1",
+                [id],
+                |r| r.get(0),
+            )
+            .expect("count");
+        assert_eq!(total, 4);
+
+        for key in ["first_launch_game", "playtime_10h", "playtime_100h", "playtime_1000h"] {
+            let n: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM achievements WHERE game_id = ?1 AND key = ?2",
+                    rusqlite::params![id, key],
+                    |r| r.get(0),
+                )
+                .expect("key count");
+            assert_eq!(n, 1, "key {key} must exist exactly once");
+        }
+    }
+
+    #[test]
+    fn backfill_covers_games_without_achievements() {
+        let conn = memory_db();
+        insert_game(&conn, "Legacy");
+        ensure_all_game_achievements(&conn).expect("backfill");
+        ensure_all_game_achievements(&conn).expect("second backfill");
+
+        let per_game: i64 = conn
+            .query_row("SELECT COUNT(*) FROM achievements", [], |r| r.get(0))
+            .expect("count");
+        assert_eq!(per_game, 4);
+    }
+
+    #[test]
+    fn imported_playtime_unlocks_hour_achievements() {
+        let conn = memory_db();
+        let id = insert_game(&conn, "Steam Game");
+        // Imported Steam stats: 40 hours played, never launched locally.
+        conn.execute(
+            "UPDATE games SET total_playtime_seconds = 40 * 3600 WHERE id = ?1",
+            [id],
+        )
+        .expect("playtime");
+        ensure_game_achievements(&conn, id, "Steam Game").expect("ensure");
+
+        let unlocked = refresh_and_unlock(&conn).expect("unlock");
+        assert_eq!(unlocked.len(), 1, "10h must unlock for 40h played");
+
+        let locked: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM achievements WHERE game_id = ?1 AND unlocked = 0",
+                [id],
+                |r| r.get(0),
+            )
+            .expect("locked count");
+        assert_eq!(locked, 3, "launch, 100h and 1000h stay locked");
+
+        let hours: i64 = conn
+            .query_row(
+                "SELECT progress_current FROM achievements WHERE game_id = ?1 AND key = 'playtime_100h'",
+                [id],
+                |r| r.get(0),
+            )
+            .expect("progress");
+        assert_eq!(hours, 40);
+    }
+
+    #[test]
+    fn fresh_game_keeps_hour_achievements_locked() {
+        let conn = memory_db();
+        let id = insert_game(&conn, "New Game");
+        ensure_game_achievements(&conn, id, "New Game").expect("ensure");
+
+        let unlocked = refresh_and_unlock(&conn).expect("unlock");
+        assert!(unlocked.is_empty(), "nothing to unlock without stats");
     }
 }

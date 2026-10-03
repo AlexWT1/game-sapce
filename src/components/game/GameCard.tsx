@@ -345,7 +345,7 @@ export function GameCard({
             <p className="text-[13px] font-semibold text-ink truncate leading-tight">
               {game.title}
             </p>
-            <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted">
+            <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] text-muted">
               <span className="flex items-center gap-1">
                 <Wifi className={cx("h-3 w-3", game.isInstalled ? "text-emerald-400" : "text-amber-400")} />
                 {game.isInstalled ? t("game.installed") : t("game.notInstalled")}

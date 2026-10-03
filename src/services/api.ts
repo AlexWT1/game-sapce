@@ -9,6 +9,7 @@ import type {
   GameSession,
   GameStatistics,
   GameTheme,
+  IgdbGameMeta,
   RunningGame,
   SearchResults,
   SettingsMap,
@@ -79,6 +80,10 @@ export const api = {
     call<StoreAccount>("link_steam_account", { apiKey, profileUrl }),
   unlinkSteamAccount: () => call<void>("unlink_steam_account"),
   syncSteamLibrary: () => call<SteamSyncResult>("sync_steam_library"),
+
+  // igdb metadata
+  igdbSearchGames: (query: string, limit?: number) =>
+    call<IgdbGameMeta[]>("igdb_search_games", { query, limit: limit ?? 8 }),
 
   // system (dialogs via JS plugin — reliable on Linux)
   windowMinimize: () => call<void>("window_minimize"),

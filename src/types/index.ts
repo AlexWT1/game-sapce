@@ -79,6 +79,8 @@ export interface Achievement {
   progressCurrent: number;
   progressTarget: number;
   scope: "game" | "app" | string;
+  /** Stable rule key (e.g. playtime_10h); null for demo achievements. */
+  key: string | null;
 }
 
 export interface GameTheme {
@@ -208,4 +210,15 @@ export interface SteamSyncResult {
 export interface BulkDeleteResult {
   deletedIds: number[];
   skipped: number;
+}
+
+export interface IgdbGameMeta {
+  igdbId: number;
+  name: string;
+  summary: string;
+  releaseYear: number | null;
+  developer: string;
+  publisher: string;
+  genres: string[];
+  coverUrl: string | null;
 }

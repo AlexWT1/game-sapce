@@ -160,12 +160,13 @@ fn duration_by_period(
     demo_off: bool,
 ) -> AppResult<Vec<PlaytimeByDay>> {
     // Group by day for "days", by ISO week start for "weeks", by month for "months".
+    // Note: SQLite's datetime() has no "weeks" modifier unit at all, and "months"/"years"
+    // only work with floating-point values ("12.0 months"), so use day-based offsets.
     let (bucket, back): (&str, &str) = match unit {
-        "weeks" => ("date(started_at, '-' || ((strftime('%w', started_at) + 6) % 7) || ' days')", "7 days"),
-        "months" => ("date(started_at, 'start of month')", "1 month"),
-        _ => ("date(started_at)", "1 day"),
+        "weeks" => ("date(started_at, '-' || ((strftime('%w', started_at) + 6) % 7) || ' days')", "-84.0 days"),
+        "months" => ("date(started_at, 'start of month')", "-365.0 days"),
+        _ => ("date(started_at)", "-14.0 days"),
     };
-
     let sql = if demo_off {
         format!(
             "SELECT {bucket} AS bucket, COALESCE(SUM(gs.duration_seconds), 0) AS secs
@@ -183,7 +184,7 @@ fn duration_by_period(
         )
     };
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([format!("-{n} {back}")], |r| {
+    let rows = stmt.query_map([back], |r| {
         Ok(PlaytimeByDay {
             date: r.get(0)?,
             seconds: r.get(1)?,
@@ -228,6 +229,102 @@ fn duration_by_period(
             .collect();
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    fn memory_db() -> Connection {
+        let conn = Connection::open_in_memory().expect("memory db");
+        conn.pragma_update(None, "foreign_keys", "ON").expect("pragma");
+        crate::database::migrations::run(&conn).expect("migrations");
+        crate::commands::settings::demo_disabled(&conn).expect("demo flag");
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('demo_mode', 'off')",
+            [],
+        )
+        .expect("demo off");
+        conn
+    }
+
+    fn insert_session(conn: &Connection, game_id: i64, days_ago: i64, secs: i64) {
+        let started = (Utc::now() - chrono::Duration::days(days_ago)).to_rfc3339();
+        conn.execute(
+            "INSERT INTO game_sessions (game_id, started_at, ended_at, duration_seconds, pid)
+             VALUES (?1, ?2, ?3, ?4, NULL)",
+            rusqlite::params![game_id, started, started, secs],
+        )
+        .expect("insert session");
+    }
+
+    #[test]
+    fn weekly_buckets_use_rfc3339_timestamps() {
+        let conn = memory_db();
+        conn.execute(
+            "INSERT INTO games (title, source, created_at, updated_at)
+             VALUES ('Witcher 3', 'Manual', 't', 't')",
+            [],
+        )
+        .expect("insert game");
+        let game_id = conn.last_insert_rowid();
+
+        insert_session(&conn, game_id, 0, 3600);
+        insert_session(&conn, game_id, 3, 1800);
+        insert_session(&conn, game_id, 20, 600);
+        insert_session(&conn, game_id, 50, 7200);
+
+        let weekly = duration_by_period(&conn, 12, "weeks", true).expect("weekly");
+        assert_eq!(weekly.len(), 12, "weekly must be gap-filled to 12 buckets");
+        let total: i64 = weekly.iter().map(|p| p.seconds).sum();
+        assert_eq!(total, 3600 + 1800 + 600 + 7200, "all sessions must land in weekly buckets");
+        // Newest session must land in the current ISO-week bucket (its Monday).
+        let today = Utc::now().date_naive();
+        let dow = today.weekday().num_days_from_monday() as i64;
+        let monday = (today - chrono::Duration::days(dow))
+            .format("%Y-%m-%d")
+            .to_string();
+        assert_eq!(weekly.last().expect("bucket").date, monday);
+    }
+
+    #[test]
+    fn daily_buckets_use_rfc3339_timestamps() {
+        let conn = memory_db();
+        conn.execute(
+            "INSERT INTO games (title, source, created_at, updated_at)
+             VALUES ('Hades', 'Manual', 't', 't')",
+            [],
+        )
+        .expect("insert game");
+        let game_id = conn.last_insert_rowid();
+        insert_session(&conn, game_id, 0, 900);
+        insert_session(&conn, game_id, 5, 300);
+
+        let daily = duration_by_period(&conn, 14, "days", true).expect("daily");
+        assert_eq!(daily.len(), 14);
+        let total: i64 = daily.iter().map(|p| p.seconds).sum();
+        assert_eq!(total, 1200);
+    }
+
+    #[test]
+    fn monthly_buckets_use_rfc3339_timestamps() {
+        let conn = memory_db();
+        conn.execute(
+            "INSERT INTO games (title, source, created_at, updated_at)
+             VALUES ('Disco Elysium', 'Manual', 't', 't')",
+            [],
+        )
+        .expect("insert game");
+        let game_id = conn.last_insert_rowid();
+        insert_session(&conn, game_id, 0, 3600);
+        insert_session(&conn, game_id, 50, 600);
+
+        let monthly = duration_by_period(&conn, 12, "months", true).expect("monthly");
+        assert!(!monthly.is_empty(), "monthly must not be empty");
+        let total: i64 = monthly.iter().map(|p| p.seconds).sum();
+        assert_eq!(total, 4200, "all sessions must land in monthly buckets");
+    }
 }
 
 #[tauri::command]

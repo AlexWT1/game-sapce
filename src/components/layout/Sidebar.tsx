@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  ChevronsLeft,
   Clock,
   Gamepad2,
   Heart,
@@ -50,7 +49,6 @@ const FILTERS: Array<{ key: GameFilter; labelKey: Parameters<ReturnType<typeof u
 export function Sidebar() {
   const t = useT();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const toggle = useUiStore((s) => s.toggleSidebar);
   const games = useGamesStore((s) => s.games);
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,22 +155,30 @@ export function Sidebar() {
             {t("nav.myGames")}
           </div>
           <div className="space-y-0.5">
-            {myGames.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => navigate(`/game/${g.id}`)}
-                className={cx(
-                  "w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[13px] transition text-left",
-                  location.pathname === `/game/${g.id}`
-                    ? "bg-white/8 text-ink"
-                    : "text-muted hover:text-ink hover:bg-white/5",
-                )}
-                title={g.title}
-              >
-                <GameCoverThumb src={g.coverPath} title={g.title} />
-                <span className="truncate">{g.title}</span>
-              </button>
-            ))}
+            {myGames.map((g) => {
+              const selected = location.pathname === `/game/${g.id}`;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => navigate(`/game/${g.id}`)}
+                  className={cx(
+                    "relative w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[13px] transition text-left",
+                    selected
+                      ? "bg-[var(--color-accent)]/14 text-ink font-medium"
+                      : "text-muted hover:text-ink hover:bg-white/5",
+                  )}
+                  title={g.title}
+                >
+                  {selected && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]" />
+                  )}
+                  <span className={cx("rounded", selected && "ring-1 ring-[var(--color-accent)]/50")}>
+                    <GameCoverThumb src={g.coverPath} title={g.title} />
+                  </span>
+                  <span className="truncate">{g.title}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="pt-5 pb-1.5 px-3 text-[10.5px] font-semibold tracking-[0.12em] text-dim">
@@ -224,25 +230,6 @@ export function Sidebar() {
         </div>
       </div>
       </aside>
-
-      <button
-        onClick={toggle}
-        className={cx(
-          "absolute z-40 -right-3 p-1.5 rounded-full text-dim",
-          "bg-[#12152b] border border-white/10 shadow-lg",
-          "hover:text-ink hover:bg-[#1a1e3a] transition",
-          "top-[calc(var(--topbar-height)/2)] -translate-y-1/2",
-        )}
-        aria-label="Toggle sidebar"
-        aria-expanded={!collapsed}
-      >
-        <ChevronsLeft
-          className={cx(
-            "h-4 w-4 transition-transform duration-300 ease-in-out",
-            collapsed && "rotate-180",
-          )}
-        />
-      </button>
     </div>
   );
 }
