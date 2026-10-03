@@ -28,8 +28,12 @@ export function StatsPanel() {
   const unlocked = achievements.filter((a) => a.unlocked);
   const lastAch = unlocked[0];
   const gameAchProgress = achievements.filter((a) => a.gameId != null).slice(0, 6);
-  const monthlySeconds =
-    stats?.monthly.reduce((sum, m) => sum + m.seconds, 0) ?? 0;
+  // Playtime in the current calendar month. Backend monthly buckets are UTC-based
+  // ("%Y-%m-01", see duration_by_period in src-tauri stats.rs), so build the key in UTC too.
+  const monthKey = new Date().toISOString().slice(0, 7);
+  const monthly = stats?.monthly ?? [];
+  const monthSeconds =
+    monthly.find((m) => m.date.startsWith(monthKey))?.seconds ?? 0;
 
   const top = stats?.mostPlayed ?? [];
 
@@ -50,13 +54,13 @@ export function StatsPanel() {
                 stroke="var(--color-accent)"
                 strokeWidth="10"
                 strokeLinecap="round"
-                strokeDasharray={`${Math.min(100, percent(monthlySeconds, Math.max(stats?.totalPlaytimeSeconds ?? 1, 1)) * 2.64)} 999`}
+                strokeDasharray={`${Math.min(100, percent(monthSeconds, Math.max(stats?.totalPlaytimeSeconds ?? 1, 1)) * 2.64)} 999`}
               />
             </svg>
             <div className="absolute inset-0 grid place-items-center text-center">
               <div>
                 <div className="text-lg font-bold text-ink leading-none">
-                  {formatPlaytime(stats?.totalPlaytimeSeconds ?? 0).split(" ").slice(0, 2).join(" ")}
+                  {formatPlaytime(monthSeconds).split(" ").slice(0, 2).join(" ")}
                 </div>
                 <div className="text-[10px] text-dim mt-1">{t("home.thisMonth")}</div>
               </div>
