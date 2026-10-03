@@ -155,22 +155,30 @@ export function Sidebar() {
             {t("nav.myGames")}
           </div>
           <div className="space-y-0.5">
-            {myGames.map((g) => (
-              <button
-                key={g.id}
-                onClick={() => navigate(`/game/${g.id}`)}
-                className={cx(
-                  "w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[13px] transition text-left",
-                  location.pathname === `/game/${g.id}`
-                    ? "bg-white/8 text-ink"
-                    : "text-muted hover:text-ink hover:bg-white/5",
-                )}
-                title={g.title}
-              >
-                <GameCoverThumb src={g.coverPath} title={g.title} />
-                <span className="truncate">{g.title}</span>
-              </button>
-            ))}
+            {myGames.map((g) => {
+              const selected = location.pathname === `/game/${g.id}`;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => navigate(`/game/${g.id}`)}
+                  className={cx(
+                    "relative w-full flex items-center gap-2.5 px-3 h-9 rounded-lg text-[13px] transition text-left",
+                    selected
+                      ? "bg-[var(--color-accent)]/14 text-ink font-medium"
+                      : "text-muted hover:text-ink hover:bg-white/5",
+                  )}
+                  title={g.title}
+                >
+                  {selected && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]" />
+                  )}
+                  <span className={cx("rounded", selected && "ring-1 ring-[var(--color-accent)]/50")}>
+                    <GameCoverThumb src={g.coverPath} title={g.title} />
+                  </span>
+                  <span className="truncate">{g.title}</span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="pt-5 pb-1.5 px-3 text-[10.5px] font-semibold tracking-[0.12em] text-dim">
