@@ -222,7 +222,8 @@ pub async fn download_with_progress(
 
 /// Installs the downloaded update and restarts the launcher.
 ///
-/// - Windows: runs `msiexec /i <file> /passive` (MSI replaces the app), then exits.
+/// - Windows: runs `msiexec /i <file> /passive /norestart`, waits for it to
+///   finish in a detached helper, then relaunches the updated executable.
 /// - Linux AppImage: atomically replaces the running AppImage and relaunches it.
 /// - Other Linux packages: hands the file to the system installer (`xdg-open`).
 pub fn install_and_restart(app: &AppHandle, path: &std::path::Path) -> AppResult<()> {
@@ -232,8 +233,25 @@ pub fn install_and_restart(app: &AppHandle, path: &std::path::Path) -> AppResult
 
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("msiexec")
-            .args(["/i".to_string(), path.to_string_lossy().to_string(), "/passive".to_string()])
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+
+        // msiexec never launches the app after an update, so chain the
+        // relaunch in one detached cmd: wait for the installer to finish,
+        // then start the updated executable. `&` (not `&&`) so the app also
+        // comes back if the user cancels the UAC prompt — in that case the
+        // previously installed version stays intact. The MSI only replaces
+        // files once this process is gone, which app.exit(0) ensures.
+        let exe = std::env::current_exe().map_err(AppError::Io)?;
+        let script = format!(
+            "msiexec /i \"{}\" /passive /norestart & start \"\" \"{}\"",
+            path.display(),
+            exe.display(),
+        );
+        std::process::Command::new("cmd")
+            .raw_arg(format!("/C {script}"))
+            .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| AppError::Other(format!("Не удалось запустить установку: {e}")))?;
         app.exit(0);
