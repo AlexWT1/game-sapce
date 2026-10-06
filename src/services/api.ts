@@ -16,6 +16,7 @@ import type {
   Statistics,
   SteamSyncResult,
   StoreAccount,
+  UpdateCheck,
 } from "@/types";
 
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -84,6 +85,12 @@ export const api = {
   // igdb metadata
   igdbSearchGames: (query: string, limit?: number) =>
     call<IgdbGameMeta[]>("igdb_search_games", { query, limit: limit ?? 8 }),
+
+  // updater
+  checkForUpdates: () => call<UpdateCheck>("check_for_updates"),
+  downloadUpdate: () => call<void>("download_update"),
+  cancelUpdateDownload: () => call<void>("cancel_update_download"),
+  installUpdate: (path: string) => call<void>("install_update", { path }),
 
   // system (dialogs via JS plugin — reliable on Linux)
   windowMinimize: () => call<void>("window_minimize"),

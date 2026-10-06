@@ -161,6 +161,24 @@ export interface AppInfo {
   platform: string;
 }
 
+export interface UpdateCheck {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  releaseNotes: string | null;
+  releaseUrl: string | null;
+  assetName: string | null;
+  downloadUrl: string | null;
+  downloadSize: number | null;
+  publishedAt: string | null;
+}
+
+export interface UpdateDownloadProgress {
+  downloaded: number;
+  total: number;
+  percent: number;
+}
+
 export type SettingsMap = Record<string, unknown>;
 
 export type GameFilter =

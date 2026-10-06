@@ -1,5 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Achievement, RunningGame } from "@/types";
+import type { Achievement, RunningGame, UpdateDownloadProgress } from "@/types";
 
 export interface GameStartedPayload {
   gameId: number;
@@ -38,6 +38,12 @@ export const events = {
   onNavigate: (h: Handler<NavigatePayload>) => on("navigate", h),
   onGameDeleted: (h: Handler<{ gameId: number }>) => on("game-deleted", h),
   onGamesDeleted: (h: Handler<{ ids: number[] }>) => on("games-deleted", h),
+  onUpdateDownloadProgress: (h: Handler<UpdateDownloadProgress>) =>
+    on("update-download-progress", h),
+  onUpdateDownloadDone: (h: Handler<string>) => on("update-download-done", h),
+  onUpdateDownloadError: (h: Handler<string>) => on("update-download-error", h),
+  onUpdateDownloadCancelled: (h: Handler<Record<string, never>>) =>
+    on("update-download-cancelled", h),
 };
 
 export type RunningChanged = RunningGame[];

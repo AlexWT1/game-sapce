@@ -23,6 +23,10 @@ pub struct AppState {
     pub tray_session_item: Mutex<Option<MenuItem<tauri::Wry>>>,
     /// Guards `sync_steam_library` against a second overlapping run.
     pub steam_syncing: Arc<AtomicBool>,
+    /// Guards the launcher update download against a second overlapping run.
+    pub update_downloading: Arc<AtomicBool>,
+    /// Signals the running update download to cancel.
+    pub update_cancel: Arc<AtomicBool>,
 }
 
 pub fn run() {
@@ -56,6 +60,8 @@ pub fn run() {
                 active: Default::default(),
                 tray_session_item: Mutex::new(None),
                 steam_syncing: Arc::new(AtomicBool::new(false)),
+                update_downloading: Arc::new(AtomicBool::new(false)),
+                update_cancel: Arc::new(AtomicBool::new(false)),
             });
 
             tray::setup(app.handle())?;
@@ -122,6 +128,10 @@ pub fn run() {
             commands::system::reset_data,
             commands::system::search_all,
             commands::system::open_path,
+            commands::updater::check_for_updates,
+            commands::updater::download_update,
+            commands::updater::cancel_update_download,
+            commands::updater::install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Game Space");
