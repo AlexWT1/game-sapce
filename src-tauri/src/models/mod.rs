@@ -209,3 +209,19 @@ pub struct IgdbGameMeta {
     pub genres: Vec<String>,
     pub cover_url: Option<String>,
 }
+
+/// Result of checking GitHub Releases for a newer launcher version.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheck {
+    pub current_version: String,
+    pub latest_version: Option<String>,
+    pub update_available: bool,
+    pub release_notes: Option<String>,
+    pub release_url: Option<String>,
+    pub asset_name: Option<String>,
+    pub download_url: Option<String>,
+    pub download_size: Option<u64>,
+    pub published_at: Option<String>,
+}
+

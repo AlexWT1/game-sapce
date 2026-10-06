@@ -102,3 +102,17 @@ export function baseName(path: string): string {
   const name = fileNameFromPath(path);
   return name.replace(/\.[^.]+$/, "");
 }
+
+/** Formats a byte count as a human-readable size, e.g. "12.4 МБ" / "12.4 MB". */
+export function formatBytes(bytes: number | null | undefined, locale = "ru"): string {
+  const ru = isRu(locale);
+  if (!Number.isFinite(bytes as number) || (bytes as number) <= 0) {
+    return ru ? "0 Б" : "0 B";
+  }
+  const b = bytes as number;
+  const units = ru ? ["Б", "КБ", "МБ", "ГБ"] : ["B", "KB", "MB", "GB"];
+  const i = Math.min(units.length - 1, Math.floor(Math.log(b) / Math.log(1024)));
+  const value = b / 1024 ** i;
+  return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+

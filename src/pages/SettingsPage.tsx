@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Database,
@@ -6,6 +6,7 @@ import {
   Info,
   Monitor,
   Palette,
+  RefreshCw,
   RotateCcw,
   Upload,
 } from "lucide-react";
@@ -18,6 +19,10 @@ import { useT } from "@/hooks/useT";
 import { useSettingsStore, applyVisualPreferences, type AccentColor, type ThemeMode } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { api } from "@/services/api";
+import { useUpdater } from "@/hooks/useUpdater";
+import { ProgressBar } from "@/components/ui/ProgressBar";
+import { formatBytes } from "@/utils/format";
+import { useLocaleCode } from "@/hooks/useT";
 import { LOCALES, type Locale } from "@/i18n";
 import type { AppInfo, SettingsMap } from "@/types";
 
@@ -30,6 +35,7 @@ export function SettingsPage() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [igdbClientId, setIgdbClientId] = useState("");
   const [igdbClientSecret, setIgdbClientSecret] = useState("");
+  const [githubToken, setGithubToken] = useState("");
 
   useEffect(() => {
     void api.getAppInfo().then(setInfo).catch(() => setInfo(null));
@@ -38,6 +44,7 @@ export function SettingsPage() {
       .then((settings) => {
         setIgdbClientId(String(settings.igdb_client_id ?? ""));
         setIgdbClientSecret(String(settings.igdb_client_secret ?? ""));
+        setGithubToken(String(settings.github_token ?? ""));
       })
       .catch(() => undefined);
   }, []);
@@ -58,6 +65,11 @@ export function SettingsPage() {
       igdb_client_secret: igdbClientSecret.trim(),
     });
     pushToast({ kind: "success", title: t("settings.igdb.saved") });
+  };
+
+  const onSaveGithubToken = async () => {
+    await persistBackend({ github_token: githubToken.trim() });
+    pushToast({ kind: "success", title: t("settings.githubTokenSaved") });
   };
 
   const onExport = async () => {
@@ -383,10 +395,149 @@ export function SettingsPage() {
       <Section icon={<Info className="h-4 w-4" />} title={t("settings.about")}>
         <Row label={t("settings.version")} control={<span className="text-[13px] text-ink">{info?.version ?? "0.1.0"}</span>} />
         <Row label={t("settings.platform")} control={<span className="text-[13px] text-ink">{info?.platform ?? "—"}</span>} />
+        <Row
+          label={t("settings.githubToken")}
+          control={
+            <div className="flex items-center gap-2">
+              <Input
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder={t("settings.githubTokenHint")}
+                className="w-64"
+              />
+              <Button variant="secondary" size="sm" onClick={() => void onSaveGithubToken()}>
+                {t("dialog.save")}
+              </Button>
+            </div>
+          }
+        />
+        <Row label={t("settings.checkUpdates")} control={<UpdaterBlock />} />
       </Section>
     </div>
   );
 }
+
+/** Update check / download / install flow for the launcher itself. */
+function UpdaterBlock() {
+  const t = useT();
+  const locale = useLocaleCode();
+  const pushToast = useUiStore((s) => s.pushToast);
+  const updater = useUpdater();
+  const { stage, check, progress, error } = updater;
+  const autoChecked = useRef(false);
+
+  useEffect(() => {
+    if (autoChecked.current) return;
+    autoChecked.current = true;
+    void updater.checkForUpdates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (stage === "ready") {
+      pushToast({ kind: "success", title: t("settings.updateReady") });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage]);
+
+  const onInstall = async () => {
+    try {
+      await updater.install();
+    } catch (e) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
+    }
+  };
+
+  const sizeLabel =
+    check?.downloadSize != null ? ` (${formatBytes(check.downloadSize, locale)})` : "";
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      {stage === "idle" && (
+        <div className="flex items-center gap-2">
+          {check && !check.updateAvailable && (
+            <Chip tone="success">{t("settings.upToDate")}</Chip>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<RefreshCw className="h-3.5 w-3.5" />}
+            onClick={() => void updater.checkForUpdates()}
+          >
+            {t("settings.checkUpdates")}
+          </Button>
+        </div>
+      )}
+
+      {stage === "checking" && (
+        <Button variant="secondary" size="sm" loading>
+          {t("settings.checking")}
+        </Button>
+      )}
+
+      {stage === "available" && check?.latestVersion && (
+        <div className="flex items-center gap-2">
+          <Chip tone="accent">
+            {t("settings.updateAvailable")} — v{check.latestVersion}
+          </Chip>
+          <Button
+            size="sm"
+            icon={<Download className="h-3.5 w-3.5" />}
+            onClick={() => void updater.startDownload()}
+          >
+            {t("settings.downloadUpdate")}
+            {sizeLabel}
+          </Button>
+        </div>
+      )}
+
+      {stage === "downloading" && (
+        <div className="flex flex-col items-end gap-1.5 w-64">
+          <div className="flex items-center justify-between w-full text-[12px] text-muted">
+            <span>{t("settings.downloadProgress")}</span>
+            <span>{Math.round(progress?.percent ?? 0)}%</span>
+          </div>
+          <ProgressBar value={progress?.percent ?? 0} />
+          <Button variant="ghost" size="sm" onClick={() => void updater.cancelDownload()}>
+            {t("settings.cancelDownload")}
+          </Button>
+        </div>
+      )}
+
+      {stage === "ready" && (
+        <div className="flex items-center gap-2">
+          <Chip tone="success">
+            {t("settings.updateReady")}
+            {check?.latestVersion ? ` — v${check.latestVersion}` : ""}
+          </Chip>
+          <Button size="sm" onClick={() => void onInstall()}>
+            {t("settings.installRestart")}
+          </Button>
+        </div>
+      )}
+
+      {stage === "error" && (
+        <div className="flex items-center gap-2">
+          <Chip tone="danger">{t("settings.updateFailed")}</Chip>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<RefreshCw className="h-3.5 w-3.5" />}
+            onClick={() => void updater.checkForUpdates()}
+          >
+            {t("settings.checkUpdates")}
+          </Button>
+        </div>
+      )}
+
+      {error && stage === "error" && (
+        <span className="text-[11px] text-muted max-w-64 text-right break-all">{error}</span>
+      )}
+    </div>
+  );
+}
+
 
 function Section({
   icon,
