@@ -217,6 +217,9 @@ const RU = {
   "settings.cancelDownload": "Отменить загрузку",
   "settings.updateFailed": "Не удалось проверить обновления",
   "settings.latest": "актуальная",
+  "settings.githubToken": "GitHub-токен",
+  "settings.githubTokenSaved": "Токен GitHub сохранён",
+  "settings.githubTokenHint": "Для приватного репозитория",
 
   "dialog.deleteTitle": "Удалить игру?",
   "dialog.deleteBody": "Игровая статистика и история сессий будут удалены.",
@@ -505,6 +508,9 @@ const EN: Dict = {
   "settings.cancelDownload": "Cancel download",
   "settings.updateFailed": "Failed to check for updates",
   "settings.latest": "latest",
+  "settings.githubToken": "GitHub token",
+  "settings.githubTokenSaved": "GitHub token saved",
+  "settings.githubTokenHint": "Needed for a private repository",
 
   "dialog.deleteTitle": "Delete game?",
   "dialog.deleteBody": "Playtime stats and session history will be removed.",

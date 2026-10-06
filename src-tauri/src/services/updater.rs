@@ -23,6 +23,7 @@ pub struct DownloadProgress {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GhAsset {
+    pub id: u64,
     pub name: String,
     pub size: u64,
     pub browser_download_url: String,
@@ -97,20 +98,53 @@ pub fn pick_asset(release: &GhRelease) -> Option<&GhAsset> {
 }
 
 /// Fetches the latest published release from GitHub.
-pub async fn fetch_latest_release() -> AppResult<GhRelease> {
+///
+/// `token` is an optional GitHub PAT: without it the repo must be public,
+/// with it private-repo releases (and assets) are accessible too.
+pub async fn fetch_latest_release(token: Option<&str>) -> AppResult<GhRelease> {
     let url = format!("https://api.github.com/repos/{GITHUB_REPO}/releases/latest");
-    let release: GhRelease = api_client()?
-        .get(&url)
-        .header("Accept", "application/vnd.github+json")
+    let request = request_set_auth(
+        api_client()?.get(&url).header("Accept", "application/vnd.github+json"),
+        token,
+    );
+    let release: GhRelease = request
         .send()
         .await
         .map_err(|e| AppError::Other(format!("GitHub: {e}")))?
         .error_for_status()
-        .map_err(|e| AppError::Other(format!("GitHub: {e}")))?
+        .map_err(github_friendly_error)?
         .json()
         .await
         .map_err(|e| AppError::Other(format!("GitHub: {e}")))?;
     Ok(release)
+}
+
+/// Applies a `Authorization: Bearer <token>` header when a token is present.
+fn request_set_auth(
+    builder: reqwest::RequestBuilder,
+    token: Option<&str>,
+) -> reqwest::RequestBuilder {
+    match token.map(str::trim).filter(|t| !t.is_empty()) {
+        Some(token) => builder.bearer_auth(token),
+        None => builder,
+    }
+}
+
+/// 404 from GitHub means "no access / no release" — for private repos the
+/// user-facing hint is to provide an access token in the settings.
+fn github_friendly_error(e: reqwest::Error) -> AppError {
+    if e.status() == Some(reqwest::StatusCode::NOT_FOUND) {
+        AppError::Other(
+            "GitHub: релизы недоступны (404). Для приватного репозитория укажите токен доступа в настройках".into(),
+        )
+    } else {
+        AppError::Other(format!("GitHub: {e}"))
+    }
+}
+
+/// API endpoint streaming the raw asset bytes (works for private repos with a token).
+pub fn asset_download_url(asset_id: u64) -> String {
+    format!("https://api.github.com/repos/{GITHUB_REPO}/releases/assets/{asset_id}")
 }
 
 /// Target file path for the downloaded installer (inside the app data dir).
@@ -126,9 +160,12 @@ pub fn download_target_path(app: &AppHandle, asset_name: &str) -> AppResult<Path
 
 /// Streams `url` to `target`, emitting `update-download-progress` events.
 /// Returns the path of the finished file. Cancels when `cancel` flips to true.
+/// `url` should be the assets API endpoint (`asset_download_url`) and
+/// `token` the GitHub PAT when the repository is private.
 pub async fn download_with_progress(
     app: &AppHandle,
     url: &str,
+    token: Option<&str>,
     total: u64,
     target: PathBuf,
     cancel: Arc<AtomicBool>,
@@ -138,8 +175,11 @@ pub async fn download_with_progress(
         .connect_timeout(Duration::from_secs(15))
         .build()
         .map_err(|e| AppError::Other(format!("HTTP client: {e}")))?;
-    let mut response = client
-        .get(url)
+    let request = request_set_auth(
+        client.get(url).header("Accept", "application/octet-stream"),
+        token,
+    );
+    let mut response = request
         .send()
         .await
         .map_err(|e| AppError::Other(format!("Скачивание: {e}")))?

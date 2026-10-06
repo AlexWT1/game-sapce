@@ -35,6 +35,7 @@ export function SettingsPage() {
   const [savedFlash, setSavedFlash] = useState(false);
   const [igdbClientId, setIgdbClientId] = useState("");
   const [igdbClientSecret, setIgdbClientSecret] = useState("");
+  const [githubToken, setGithubToken] = useState("");
 
   useEffect(() => {
     void api.getAppInfo().then(setInfo).catch(() => setInfo(null));
@@ -43,6 +44,7 @@ export function SettingsPage() {
       .then((settings) => {
         setIgdbClientId(String(settings.igdb_client_id ?? ""));
         setIgdbClientSecret(String(settings.igdb_client_secret ?? ""));
+        setGithubToken(String(settings.github_token ?? ""));
       })
       .catch(() => undefined);
   }, []);
@@ -63,6 +65,11 @@ export function SettingsPage() {
       igdb_client_secret: igdbClientSecret.trim(),
     });
     pushToast({ kind: "success", title: t("settings.igdb.saved") });
+  };
+
+  const onSaveGithubToken = async () => {
+    await persistBackend({ github_token: githubToken.trim() });
+    pushToast({ kind: "success", title: t("settings.githubTokenSaved") });
   };
 
   const onExport = async () => {
@@ -388,6 +395,23 @@ export function SettingsPage() {
       <Section icon={<Info className="h-4 w-4" />} title={t("settings.about")}>
         <Row label={t("settings.version")} control={<span className="text-[13px] text-ink">{info?.version ?? "0.1.0"}</span>} />
         <Row label={t("settings.platform")} control={<span className="text-[13px] text-ink">{info?.platform ?? "—"}</span>} />
+        <Row
+          label={t("settings.githubToken")}
+          control={
+            <div className="flex items-center gap-2">
+              <Input
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder={t("settings.githubTokenHint")}
+                className="w-64"
+              />
+              <Button variant="secondary" size="sm" onClick={() => void onSaveGithubToken()}>
+                {t("dialog.save")}
+              </Button>
+            </div>
+          }
+        />
         <Row label={t("settings.checkUpdates")} control={<UpdaterBlock />} />
       </Section>
     </div>

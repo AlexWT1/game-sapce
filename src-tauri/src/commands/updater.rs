@@ -3,16 +3,31 @@ use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter, State};
 
+use crate::commands::settings::read_setting;
 use crate::error::{AppError, AppResult};
 use crate::models::UpdateCheck;
 use crate::services::updater;
 use crate::AppState;
 
+/// Reads the optional GitHub PAT stored in settings (`github_token`).
+/// Empty/missing token means anonymous access (public repos only).
+fn github_token(state: &AppState) -> Option<String> {
+    state
+        .db
+        .with(|conn| Ok(read_setting(conn, "github_token")?))
+        .ok()
+        .flatten()
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
 /// Compares the current version against the latest GitHub release.
+/// Works anonymously for public repos; pass a token in settings for private ones.
 #[tauri::command]
-pub async fn check_for_updates() -> AppResult<UpdateCheck> {
+pub async fn check_for_updates(state: State<'_, AppState>) -> AppResult<UpdateCheck> {
+    let token = github_token(&state);
     let current_version = env!("CARGO_PKG_VERSION").to_string();
-    let release = updater::fetch_latest_release().await?;
+    let release = updater::fetch_latest_release(token.as_deref()).await?;
     let asset = updater::pick_asset(&release);
     let asset_name = asset.map(|a| a.name.clone());
     let download_url = asset.map(|a| a.browser_download_url.clone());
@@ -48,9 +63,10 @@ pub async fn download_update(app: AppHandle, state: State<'_, AppState>) -> AppR
     let app2 = app.clone();
     let downloading = state.update_downloading.clone();
     let cancel = state.update_cancel.clone();
+    let token = github_token(&state);
 
     tauri::async_runtime::spawn(async move {
-        let result = run_download(&app2, cancel).await;
+        let result = run_download(&app2, token, cancel).await;
         downloading.store(false, Ordering::Relaxed);
         if let Err(e) = result {
             let msg = e.to_string();
@@ -65,16 +81,26 @@ pub async fn download_update(app: AppHandle, state: State<'_, AppState>) -> AppR
 
 async fn run_download(
     app: &AppHandle,
+    token: Option<String>,
     cancel: Arc<AtomicBool>,
 ) -> AppResult<std::path::PathBuf> {
-    let release = updater::fetch_latest_release().await?;
+    let release = updater::fetch_latest_release(token.as_deref()).await?;
     let asset = updater::pick_asset(&release).ok_or_else(|| {
         AppError::not_found("В последнем релизе нет файла для этой платформы")
     })?;
+    // For private repos `browser_download_url` requires auth; the assets API
+    // endpoint streams raw bytes and works with (and without) a token.
+    let has_token = token.as_deref().is_some_and(|t| !t.trim().is_empty());
+    let url = if has_token {
+        updater::asset_download_url(asset.id)
+    } else {
+        asset.browser_download_url.clone()
+    };
     let target = updater::download_target_path(app, &asset.name)?;
     let path = updater::download_with_progress(
         app,
-        &asset.browser_download_url,
+        &url,
+        token.as_deref(),
         asset.size,
         target,
         cancel,
