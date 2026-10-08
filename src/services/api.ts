@@ -10,6 +10,7 @@ import type {
   GameStatistics,
   GameTheme,
   IgdbGameMeta,
+  InstallStatusChange,
   RunningGame,
   SearchResults,
   SettingsMap,
@@ -42,6 +43,8 @@ export const api = {
   toggleFavorite: (id: number) => call<Game>("toggle_favorite", { id }),
   setGameExecutable: (id: number, path: string) =>
     call<Game>("set_game_executable", { id, path }),
+  verifyInstallations: () =>
+    call<InstallStatusChange[]>("verify_installations"),
 
   // themes
   getGameTheme: (gameId: number) => call<GameTheme>("get_game_theme", { gameId }),

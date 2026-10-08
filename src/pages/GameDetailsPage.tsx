@@ -139,7 +139,10 @@ export function GameDetailsPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {game.genre && <Chip tone="accent">{game.genre}</Chip>}
                 {game.releaseYear && <Chip>{game.releaseYear}</Chip>}
-                <Chip tone={game.isInstalled ? "success" : "warning"}>
+                <Chip tone={game.isInstalled ? "success" : "danger"}>
+                  {!game.isInstalled && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                  )}
                   {game.isInstalled ? t("game.installed") : t("game.notInstalled")}
                 </Chip>
                 {game.controllerSupport !== "unknown" && (

@@ -35,6 +35,11 @@ export interface Game {
   launchCount: number;
 }
 
+export interface InstallStatusChange {
+  id: number;
+  isInstalled: boolean;
+}
+
 export interface GameInput {
   title?: string;
   description?: string | null;

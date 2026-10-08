@@ -189,6 +189,14 @@ pub struct SteamSyncResult {
     pub updated: i64,
 }
 
+/// A game whose `is_installed` flag flipped during a verification pass.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallStatusChange {
+    pub id: i64,
+    pub is_installed: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BulkDeleteResult {

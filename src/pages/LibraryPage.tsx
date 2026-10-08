@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Grid3x3, List, ListChecks, Plus, Search, Trash2 } from "lucide-react";
+import { Grid3x3, List, ListChecks, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { GameGrid } from "@/components/game/GameGrid";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Chip } from "@/components/ui/Chip";
 import { useT } from "@/hooks/useT";
+import { verifyInstallations } from "@/hooks/useInstallVerify";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useAchievementsStore } from "@/stores/achievementsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -27,6 +28,7 @@ export function LibraryPage() {
   const [sort, setSort] = useState<SortKey>("lastPlayed");
   const [query, setQuery] = useState("");
   const [selecting, setSelecting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(() => new Set());
 
   const filter = (params.get("filter") as GameFilter | null) ?? "all";
@@ -177,6 +179,23 @@ export function LibraryPage() {
     });
   };
 
+  const handleVerify = async () => {
+    if (verifying) return;
+    setVerifying(true);
+    try {
+      const changed = await verifyInstallations();
+      if (changed > 0) {
+        pushToast({ kind: "info", title: t("toast.verifyChanged"), body: String(changed) });
+      } else {
+        pushToast({ kind: "success", title: t("toast.verifyOk") });
+      }
+    } catch (e) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <div className="p-5 space-y-4 min-h-full">
       <div className="flex flex-wrap items-center gap-3">
@@ -228,6 +247,16 @@ export function LibraryPage() {
             <List className="h-4 w-4" />
           </button>
         </div>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void handleVerify()}
+          disabled={verifying}
+          icon={<RefreshCw className={cx("h-3.5 w-3.5", verifying && "animate-spin")} />}
+        >
+          {t("library.verifyInstall")}
+        </Button>
 
         <Button
           size="sm"

@@ -23,6 +23,8 @@ pub struct AppState {
     pub tray_session_item: Mutex<Option<MenuItem<tauri::Wry>>>,
     /// Guards `sync_steam_library` against a second overlapping run.
     pub steam_syncing: Arc<AtomicBool>,
+    /// Guards `verify_installations` against a second overlapping run.
+    pub install_verifying: Arc<AtomicBool>,
     /// Guards the launcher update download against a second overlapping run.
     pub update_downloading: Arc<AtomicBool>,
     /// Signals the running update download to cancel.
@@ -60,6 +62,7 @@ pub fn run() {
                 active: Default::default(),
                 tray_session_item: Mutex::new(None),
                 steam_syncing: Arc::new(AtomicBool::new(false)),
+                install_verifying: Arc::new(AtomicBool::new(false)),
                 update_downloading: Arc::new(AtomicBool::new(false)),
                 update_cancel: Arc::new(AtomicBool::new(false)),
             });
@@ -67,6 +70,19 @@ pub fn run() {
             tray::setup(app.handle())?;
             process::monitor::recover_sessions(app.handle());
             process::monitor::start_monitor(app.handle().clone());
+
+            // Re-check install statuses in the background so uninstalled
+            // games show up as such right after the app starts.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<AppState>();
+                    if let Err(err) = commands::games::verify_installations_impl(&handle, &state) {
+                        log::error!("Startup install verification failed: {err}");
+                    }
+                });
+            }
+
             log::info!("Setup complete");
             Ok(())
         })
@@ -94,6 +110,7 @@ pub fn run() {
             commands::games::delete_games,
             commands::games::toggle_favorite,
             commands::games::set_game_executable,
+            commands::games::verify_installations,
             commands::games::get_game_theme,
             commands::games::set_game_theme,
             commands::launch::launch_game,

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Gamepad2, Heart, MoreHorizontal, Clock, Wifi } from "lucide-react";
+import { Check, Gamepad2, Heart, MoreHorizontal, Clock } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/ContextMenu";
 import { Chip } from "@/components/ui/Chip";
 import { useT } from "@/hooks/useT";
@@ -152,7 +152,10 @@ export function GameCard({
               <img
                 src={game.coverPath}
                 alt={game.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                className={cx(
+                  "h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
                 loading="lazy"
                 onError={onCoverError}
               />
@@ -229,7 +232,10 @@ export function GameCard({
               <img
                 src={game.coverPath}
                 alt=""
-                className="h-full w-full object-cover"
+                className={cx(
+                  "h-full w-full object-cover",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
                 loading="lazy"
                 onError={onCoverError}
               />
@@ -262,7 +268,10 @@ export function GameCard({
             ) : game.isInstalled ? (
               <Chip tone="default">{t("game.installed")}</Chip>
             ) : (
-              <Chip tone="warning">{t("game.notInstalled")}</Chip>
+              <Chip tone="danger">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                {t("game.notInstalled")}
+              </Chip>
             )}
             <button
               onClick={(e) => {
@@ -299,7 +308,10 @@ export function GameCard({
             <img
               src={game.coverPath}
               alt={game.title}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                className={cx(
+                  "h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
               loading="lazy"
               onError={onCoverError}
             />
@@ -346,8 +358,15 @@ export function GameCard({
               {game.title}
             </p>
             <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] text-muted">
-              <span className="flex items-center gap-1">
-                <Wifi className={cx("h-3 w-3", game.isInstalled ? "text-emerald-400" : "text-amber-400")} />
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={cx(
+                    "h-2 w-2 rounded-full shrink-0",
+                    game.isInstalled
+                      ? "bg-emerald-400"
+                      : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]",
+                  )}
+                />
                 {game.isInstalled ? t("game.installed") : t("game.notInstalled")}
               </span>
               <span className="flex items-center gap-1 text-dim">

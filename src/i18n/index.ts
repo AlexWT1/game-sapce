@@ -105,6 +105,7 @@ const RU = {
   "library.empty": "Твоя библиотека пуста",
   "library.emptyHint": "Добавь первую игру и начни собирать свою игровую статистику.",
   "library.results": "Найдено игр",
+  "library.verifyInstall": "Проверить установку",
 
   "achievements.title": "Достижения",
   "achievements.unlocked": "Получено",
@@ -267,6 +268,8 @@ const RU = {
   "toast.copied": "Скопировано",
   "toast.deletedMany": "Игры удалены",
   "toast.skippedRunning": "Пропущено запущенных",
+  "toast.verifyChanged": "Статусы обновлены",
+  "toast.verifyOk": "Статусы актуальны",
   "toast.error": "Ошибка",
   "toast.achievement": "Достижение получено!",
 
@@ -396,6 +399,7 @@ const EN: Dict = {
   "library.empty": "Your library is empty",
   "library.emptyHint": "Add your first game and start collecting play stats.",
   "library.results": "Games found",
+  "library.verifyInstall": "Verify installation",
 
   "achievements.title": "Achievements",
   "achievements.unlocked": "Unlocked",
@@ -558,6 +562,8 @@ const EN: Dict = {
   "toast.copied": "Copied",
   "toast.deletedMany": "Games deleted",
   "toast.skippedRunning": "Skipped running",
+  "toast.verifyChanged": "Statuses updated",
+  "toast.verifyOk": "Statuses are up to date",
   "toast.error": "Error",
   "toast.achievement": "Achievement unlocked!",
 
