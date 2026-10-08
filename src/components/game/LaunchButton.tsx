@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Play, Square, FileCog } from "lucide-react";
+import { Play, Square, FileCog, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useT } from "@/hooks/useT";
 import { useLocaleCode } from "@/hooks/useT";
 import { formatHMS } from "@/utils/format";
-import { canLaunch } from "@/utils/game";
+import { canLaunch, isSteamGame } from "@/utils/game";
+import { api } from "@/services/api";
 import type { Game } from "@/types";
 
 interface LaunchButtonProps {
@@ -29,6 +30,20 @@ export function LaunchButton({ game, size = "md", block }: LaunchButtonProps) {
   void locale;
 
   const missingExe = !canLaunch(game);
+  const notInstalled = !game.isInstalled;
+  const downloadable = notInstalled && isSteamGame(game);
+
+  const onDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBusy(true);
+    try {
+      await api.downloadGame(game.id);
+    } catch (err) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const onPlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -80,6 +95,39 @@ export function LaunchButton({ game, size = "md", block }: LaunchButtonProps) {
         <span className="tabular-nums">{formatHMS(live)}</span>
         <span className="mx-1 text-dim">·</span>
         {t("game.stop")}
+      </Button>
+    );
+  }
+
+  if (downloadable) {
+    return (
+      <Button
+        variant="secondary"
+        size={size}
+        block={block}
+        loading={busy}
+        onClick={onDownload}
+        icon={<Download className="h-4 w-4" />}
+        className={block ? "w-full" : undefined}
+      >
+        {t("game.download")}
+      </Button>
+    );
+  }
+
+  if (notInstalled) {
+    return (
+      <Button
+        variant="outline"
+        size={size}
+        block={block}
+        disabled
+        icon={
+          <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
+        }
+        className={block ? "w-full" : undefined}
+      >
+        {t("game.notInstalled")}
       </Button>
     );
   }

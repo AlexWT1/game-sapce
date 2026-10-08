@@ -52,6 +52,7 @@ export const api = {
 
   // launch / sessions
   launchGame: (gameId: number) => call<RunningGame>("launch_game", { gameId }),
+  downloadGame: (gameId: number) => call<void>("download_game", { gameId }),
   stopGame: (gameId: number) => call<void>("stop_game", { gameId }),
   getRunningGames: () => call<RunningGame[]>("get_running_games"),
   isGameRunning: (gameId: number) => call<boolean>("is_game_running", { gameId }),

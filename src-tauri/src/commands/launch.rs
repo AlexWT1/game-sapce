@@ -41,6 +41,13 @@ pub fn launch_game(
         .as_deref()
         .map(|path| !path.trim().is_empty() && std::path::Path::new(path).exists())
         .unwrap_or(false);
+
+    // Never start a session (or open Steam's download prompt) for a game that
+    // is not installed — it would count playtime for a game nobody is playing.
+    if !game.is_installed && !local_exe_ready {
+        return Err(AppError::validation("Игра не установлена"));
+    }
+
     let steam_appid = if local_exe_ready {
         None
     } else {
@@ -77,7 +84,7 @@ pub fn launch_game(
         let id = conn.last_insert_rowid();
         conn.execute(
             "UPDATE games SET launch_count = launch_count + 1, last_played_at = ?1,
-                updated_at = ?1, is_installed = 1
+                updated_at = ?1
              WHERE id = ?2",
             rusqlite::params![now, game_id],
         )?;
@@ -114,6 +121,26 @@ pub fn launch_game(
         started_at: now,
         cover_path: game.cover_path,
     })
+}
+
+/// Opens the Steam install wizard for a game that is not installed locally.
+#[tauri::command]
+pub fn download_game(state: State<'_, AppState>, game_id: i64) -> AppResult<()> {
+    let appid: Option<i64> = state.db.with(|conn| {
+        conn.query_row(
+            "SELECT appid FROM steam_games WHERE game_id = ?1",
+            [game_id],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(AppError::Database)
+    })?;
+    let Some(appid) = appid else {
+        return Err(AppError::validation("Игра не привязана к Steam"));
+    };
+    crate::services::opener::open_url(&format!("steam://install/{appid}"))?;
+    log::info!("Opened Steam install for game #{game_id} (appid {appid})");
+    Ok(())
 }
 
 #[tauri::command]

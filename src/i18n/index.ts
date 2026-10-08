@@ -44,6 +44,7 @@ const RU = {
   "home.statusIdle": "Не запущена",
 
   "game.play": "Играть",
+  "game.download": "Скачать",
   "game.stop": "Остановить",
   "game.specifyFile": "Указать файл",
   "game.title": "Название",
@@ -338,6 +339,7 @@ const EN: Dict = {
   "home.statusIdle": "Not running",
 
   "game.play": "Play",
+  "game.download": "Download",
   "game.stop": "Stop",
   "game.specifyFile": "Specify file",
   "game.title": "Title",

@@ -114,6 +114,7 @@ pub fn run() {
             commands::games::get_game_theme,
             commands::games::set_game_theme,
             commands::launch::launch_game,
+            commands::launch::download_game,
             commands::launch::stop_game,
             commands::launch::get_running_games,
             commands::launch::is_game_running,

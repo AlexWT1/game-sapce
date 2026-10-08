@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Gamepad2, Heart, MoreHorizontal, Clock } from "lucide-react";
+import { Check, Download, Gamepad2, Heart, MoreHorizontal, Clock } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/ContextMenu";
 import { Chip } from "@/components/ui/Chip";
 import { useT } from "@/hooks/useT";
@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { cx, formatPlaytime, formatHMS, relativeTime } from "@/utils/format";
-import { canLaunch } from "@/utils/game";
+import { canLaunch, isSteamGame } from "@/utils/game";
 import type { Game } from "@/types";
 
 interface GameCardProps {
@@ -43,12 +43,36 @@ export function buildGameMenu(game: Game, t: ReturnType<typeof useT>): ContextMe
   return [
     {
       key: "play",
-      label: session.isRunning(game.id) ? t("game.stop") : t("game.play"),
-      icon: <Clock className="h-3.5 w-3.5" />,
+      label: session.isRunning(game.id)
+        ? t("game.stop")
+        : !game.isInstalled
+          ? isSteamGame(game)
+            ? t("game.download")
+            : t("game.notInstalled")
+          : t("game.play"),
+      icon:
+        !game.isInstalled && !session.isRunning(game.id) && isSteamGame(game) ? (
+          <Download className="h-3.5 w-3.5" />
+        ) : (
+          <Clock className="h-3.5 w-3.5" />
+        ),
+      disabled: !game.isInstalled && !isSteamGame(game),
       onSelect: () => {
         if (session.isRunning(game.id)) {
           void session.stop(game.id);
-        } else if (canLaunch(game)) {
+          return;
+        }
+        if (!game.isInstalled) {
+          if (isSteamGame(game)) {
+            void import("@/services/api")
+              .then(({ api }) => api.downloadGame(game.id))
+              .catch((e) =>
+                ui.pushToast({ kind: "error", title: t("toast.error"), body: String(e) }),
+              );
+          }
+          return;
+        }
+        if (canLaunch(game)) {
           void session
             .launch(game.id)
             .then(() => games.load(true))
