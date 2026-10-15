@@ -42,7 +42,7 @@ pub fn kill_pid(pid: u32) -> bool {
 
 /// Sessions started without a known pid (via `steam://`) stay alive while a process
 /// runs from the install folder, or during the boot grace period.
-const LAUNCH_GRACE_SECS: i64 = 120;
+const LAUNCH_GRACE_SECS: i64 = 30;
 
 fn normalize_path(path: &str) -> String {
     path.trim().trim_end_matches(['/', '\\']).to_lowercase()
@@ -110,11 +110,19 @@ pub fn session_alive(state: &AppState, game_id: i64, session: &ActiveSession) ->
     let Ok(game) = crate::commands::games::get_game_internal(state, game_id) else {
         return false;
     };
-    let Some(path) = game.install_path.filter(|p| !p.trim().is_empty()) else {
-        return false;
-    };
-    if path_running(&path) {
-        return true;
+    // Any process started from the game folder keeps the session alive —
+    // this covers launcher-based launches where the launcher may exit early.
+    if let Some(path) = game.install_path.filter(|p| !p.trim().is_empty()) {
+        if path_running(&path) {
+            return true;
+        }
+    }
+    if let Some(exe) = game.executable_path.filter(|p| !p.trim().is_empty()) {
+        if let Some(dir) = std::path::Path::new(exe.as_str()).parent() {
+            if !dir.as_os_str().is_empty() && path_running(&dir.to_string_lossy()) {
+                return true;
+            }
+        }
     }
     // Steam may still be downloading or booting the game.
     grace_active(&session.started_at)
