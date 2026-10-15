@@ -4,7 +4,7 @@ use std::process::{Child, Command, Stdio};
 use crate::error::{AppError, AppResult};
 
 /// Platform-specific game launching helpers.
-pub fn spawn_game(executable: &Path) -> AppResult<Child> {
+pub fn spawn_game(executable: &Path, args: &[String]) -> AppResult<Child> {
     if !executable.exists() {
         return Err(AppError::launch(format!(
             "Файл игры не найден: {}",
@@ -18,6 +18,7 @@ pub fn spawn_game(executable: &Path) -> AppResult<Child> {
             let child = Command::new("open")
                 .arg("-a")
                 .arg(executable)
+                .args(args)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
@@ -27,6 +28,7 @@ pub fn spawn_game(executable: &Path) -> AppResult<Child> {
     }
 
     let mut cmd = Command::new(executable);
+    cmd.args(args);
     if let Some(dir) = executable.parent() {
         cmd.current_dir(dir);
     }
@@ -55,6 +57,29 @@ pub fn spawn_game(executable: &Path) -> AppResult<Child> {
         child.id()
     );
     Ok(child)
+}
+
+/// Splits a command line into arguments with Windows-style quote support:
+/// `-mode debug "my folder/x" -user 1` → ["-mode", "debug", "my folder/x", "-user", "1"]
+pub fn split_args(input: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_quotes = false;
+    for ch in input.chars() {
+        match ch {
+            '"' => in_quotes = !in_quotes,
+            c if c.is_whitespace() && !in_quotes => {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+            }
+            c => cur.push(c),
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
 }
 
 /// Validates that the path points to something launchable.

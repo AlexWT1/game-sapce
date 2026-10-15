@@ -215,6 +215,23 @@ export function GameDetailsPage() {
               <code className="block text-[12.5px] text-muted break-all">{game.executablePath}</code>
             </div>
           )}
+
+          {game.useLauncher && game.launcherPath && (
+            <div className="mt-4">
+              <p className="text-[11px] uppercase tracking-wide text-dim mb-1.5">
+                {t("game.launcherPath")}
+              </p>
+              <code className="block text-[12.5px] text-muted break-all">{game.launcherPath}</code>
+              {game.launcherArgs && (
+                <p className="mt-1.5">
+                  <span className="text-[11px] uppercase tracking-wide text-dim">
+                    {t("game.launcherArgs")}:{" "}
+                  </span>
+                  <code className="text-[12.5px] text-muted">{game.launcherArgs}</code>
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Stats cards */}

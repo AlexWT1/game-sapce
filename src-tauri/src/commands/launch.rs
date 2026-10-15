@@ -42,16 +42,50 @@ pub fn launch_game(
         .map(|path| !path.trim().is_empty() && std::path::Path::new(path).exists())
         .unwrap_or(false);
 
+    // Launcher-based games spawn their own launcher; the game is started from it.
+    let launcher_ready = game.use_launcher
+        && game
+            .launcher_path
+            .as_deref()
+            .map(|p| std::path::Path::new(p).exists())
+            .unwrap_or(false);
+
     // Never start a session (or open Steam's download prompt) for a game that
     // is not installed — it would count playtime for a game nobody is playing.
-    if !game.is_installed && !local_exe_ready {
+    if !game.is_installed && !local_exe_ready && !launcher_ready {
         return Err(AppError::validation("Игра не установлена"));
     }
 
-    let steam_appid = if local_exe_ready {
-        None
+    let pid = if launcher_ready {
+        // Spawn the launcher and track the session by the game folder (pid = 0):
+        // the launcher may close itself once the game process is up.
+        let launcher = game
+            .launcher_path
+            .as_deref()
+            .ok_or_else(|| AppError::launch("Путь к лаунчеру не указан. Укажите файл лаунчера."))?;
+        let path = crate::game::launcher::validate_executable(launcher)?;
+        let args: Vec<String> = game
+            .launcher_args
+            .as_deref()
+            .map(crate::game::launcher::split_args)
+            .unwrap_or_default();
+        crate::game::launcher::spawn_game(&path, &args)?;
+        log::info!(
+            "Launched {} via its own launcher (args: {:?})",
+            game.title,
+            args
+        );
+        0u32
+    } else if local_exe_ready {
+        let exe = game
+            .executable_path
+            .as_deref()
+            .ok_or_else(|| AppError::launch("Executable не указан. Укажите файл игры."))?;
+        let path = crate::game::launcher::validate_executable(exe)?;
+        crate::game::launcher::spawn_game(&path, &[])?.id()
     } else {
-        state.db.with(|conn| {
+        // Steam launch via steam:// protocol.
+        let appid: i64 = state.db.with(|conn| {
             conn.query_row(
                 "SELECT appid FROM steam_games WHERE game_id = ?1",
                 [game_id],
@@ -59,19 +93,9 @@ pub fn launch_game(
             )
             .optional()
             .map_err(AppError::Database)
-        })?
-    };
-
-    let pid = if let Some(appid) = steam_appid {
+        })?.ok_or_else(|| AppError::NotFound("Steam appid not found for this game".into()))?;
         crate::services::opener::open_url(&format!("steam://rungameid/{appid}"))?;
         0u32
-    } else {
-        let exe = game
-            .executable_path
-            .as_deref()
-            .ok_or_else(|| AppError::launch("Executable не указан. Укажите файл игры."))?;
-        let path = crate::game::launcher::validate_executable(exe)?;
-        crate::game::launcher::spawn_game(&path)?.id()
     };
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -155,11 +179,26 @@ pub fn stop_game(app: AppHandle, state: State<'_, AppState>, game_id: i64) -> Ap
 
     if let Some(session) = session {
         if session.pid == 0 {
-            // Started via steam:// — pid is unknown, stop processes from the install folder.
+            // Started via steam:// or a game launcher — pid is unknown, stop
+            // processes from the game folder.
             if let Ok(game) = crate::commands::games::get_game_internal(&state, game_id) {
-                if let Some(path) = game.install_path {
+                let mut killed = false;
+                if let Some(path) = game.install_path.as_deref().filter(|p| !p.trim().is_empty()) {
                     if monitor::kill_by_path(&path) {
                         log::info!("Killed processes of game {game_id} under {path}");
+                        killed = true;
+                    }
+                }
+                if !killed {
+                    if let Some(exe) = game.executable_path.as_deref().filter(|p| !p.trim().is_empty()) {
+                        if let Some(dir) = std::path::Path::new(exe).parent() {
+                            if !dir.as_os_str().is_empty() {
+                                let dir_str = dir.to_string_lossy().to_string();
+                                if monitor::kill_by_path(&dir_str) {
+                                    log::info!("Killed processes of game {game_id} under {dir_str}");
+                                }
+                            }
+                        }
                     }
                 }
             }

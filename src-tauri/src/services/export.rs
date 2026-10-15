@@ -48,6 +48,9 @@ fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         last_played_at: row.get(20)?,
         total_playtime_seconds: row.get(21)?,
         launch_count: row.get(22)?,
+        use_launcher: row.get::<_, i64>(23)? != 0,
+        launcher_path: row.get(24)?,
+        launcher_args: row.get(25).ok().flatten(),
     })
 }
 
@@ -57,7 +60,7 @@ pub fn export(conn: &Connection) -> AppResult<String> {
             "SELECT id, title, description, executable_path, install_path, cover_path, background_path,
                     icon_path, developer, publisher, genre, release_year, platform, source, controller_support,
                     is_installed, is_favorite, is_hidden, created_at, updated_at, last_played_at,
-                    total_playtime_seconds, launch_count
+                    total_playtime_seconds, launch_count, use_launcher, launcher_path, launcher_args
              FROM games ORDER BY id",
         )?;
         let rows = stmt.query_map([], map_game)?;
@@ -160,8 +163,8 @@ pub fn import(conn: &Connection, json: &str) -> AppResult<(usize, usize)> {
             "INSERT INTO games (title, description, executable_path, install_path, cover_path, background_path,
                 icon_path, developer, publisher, genre, release_year, platform, source, controller_support,
                 is_installed, is_favorite, is_hidden, created_at, updated_at, last_played_at,
-                total_playtime_seconds, launch_count)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)",
+                total_playtime_seconds, launch_count, use_launcher, launcher_path, launcher_args)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25)",
             rusqlite::params![
                 game.title,
                 game.description,
@@ -184,7 +187,10 @@ pub fn import(conn: &Connection, json: &str) -> AppResult<(usize, usize)> {
                 game.updated_at,
                 game.last_played_at,
                 game.total_playtime_seconds,
-                game.launch_count
+                game.launch_count,
+                game.use_launcher as i64,
+                game.launcher_path,
+                game.launcher_args
             ],
         )
         .map_err(AppError::Database)?;

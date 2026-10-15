@@ -26,6 +26,9 @@ export interface Game {
   source: string;
   controllerSupport: string;
   isInstalled: boolean;
+  useLauncher: boolean;
+  launcherPath: string | null;
+  launcherArgs?: string | null;
   isFavorite: boolean;
   isHidden: boolean;
   createdAt: string;
@@ -56,6 +59,9 @@ export interface GameInput {
   source?: string | null;
   controllerSupport?: string | null;
   isInstalled?: boolean | null;
+  useLauncher?: boolean | null;
+  launcherPath?: string | null;
+  launcherArgs?: string | null;
   isFavorite?: boolean | null;
   isHidden?: boolean | null;
 }
