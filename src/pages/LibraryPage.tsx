@@ -89,22 +89,28 @@ export function LibraryPage() {
       );
     }
 
+    const installRank = (g: (typeof games)[number]) => (g.isInstalled ? 0 : 1);
+    const byInstallFirst =
+      (then: (a: (typeof games)[number], b: (typeof games)[number]) => number) =>
+      (a: (typeof games)[number], b: (typeof games)[number]) =>
+        installRank(a) - installRank(b) || then(a, b);
+
     switch (sort) {
       case "title":
-        out.sort((a, b) => a.title.localeCompare(b.title));
+        out.sort(byInstallFirst((a, b) => a.title.localeCompare(b.title)));
         break;
       case "playtime":
-        out.sort((a, b) => b.totalPlaytimeSeconds - a.totalPlaytimeSeconds);
+        out.sort(byInstallFirst((a, b) => b.totalPlaytimeSeconds - a.totalPlaytimeSeconds));
         break;
       case "lastPlayed":
-        out.sort((a, b) => (b.lastPlayedAt ?? "").localeCompare(a.lastPlayedAt ?? ""));
+        out.sort(byInstallFirst((a, b) => (b.lastPlayedAt ?? "").localeCompare(a.lastPlayedAt ?? "")));
         break;
       case "added":
-        out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        out.sort(byInstallFirst((a, b) => b.createdAt.localeCompare(a.createdAt)));
         break;
       case "achievements":
         out.sort(
-          (a, b) => (achCount.get(b.id) ?? 0) - (achCount.get(a.id) ?? 0),
+          byInstallFirst((a, b) => (achCount.get(b.id) ?? 0) - (achCount.get(a.id) ?? 0)),
         );
         break;
     }
