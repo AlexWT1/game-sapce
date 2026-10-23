@@ -6,6 +6,7 @@ import { LibraryPage } from "@/pages/LibraryPage";
 import { GameDetailsPage } from "@/pages/GameDetailsPage";
 import { AchievementsPage } from "@/pages/AchievementsPage";
 import { StatisticsPage } from "@/pages/StatisticsPage";
+import { RecapPage } from "@/pages/RecapPage";
 import { FriendsPage } from "@/pages/FriendsPage";
 import { ShopPage } from "@/pages/ShopPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/game/:id" element={<GameDetailsPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/statistics" element={<StatisticsPage />} />
+            <Route path="/recap" element={<RecapPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/shop" element={<ShopPage />} />
             <Route path="/settings" element={<SettingsPage />} />

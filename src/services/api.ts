@@ -63,8 +63,11 @@ export const api = {
   getGameSessions: (gameId: number) =>
     call<GameSession[]>("get_game_sessions", { gameId }),
 
-  // statistics
-  getStatistics: () => call<Statistics>("get_statistics"),
+  // statistics — `from`/`to` are YYYY-MM-DD dates (`to` exclusive) for the
+  // session-based range mode; omitted → lifetime aggregates (Steam-seeded
+  // totals included).
+  getStatistics: (from?: string | null, to?: string | null) =>
+    call<Statistics>("get_statistics", { from: from ?? null, to: to ?? null }),
   getGameStatistics: (gameId: number) =>
     call<GameStatistics>("get_game_statistics", { gameId }),
 

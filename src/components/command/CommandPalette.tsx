@@ -6,6 +6,7 @@ import {
   Gamepad2,
   Hash,
   CornerDownLeft,
+  Sparkles,
   Trophy,
   User,
 } from "lucide-react";
@@ -97,6 +98,13 @@ export function CommandPalette() {
         label: t("nav.statistics"),
         icon: <Hash className="h-4 w-4" />,
         run: () => navigate("/statistics"),
+      },
+      {
+        id: "nav-recap",
+        group: t("command.navigate"),
+        label: t("recap.title"),
+        icon: <Sparkles className="h-4 w-4" />,
+        run: () => navigate("/recap"),
       },
       {
         id: "nav-friends",
