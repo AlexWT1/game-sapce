@@ -145,18 +145,6 @@ npm run tauri build
 └── scripts/              # утилиты для разработки
 ```
 
-## 🧪 Утилиты для разработки
-
-`scripts/capture-screenshots.mjs` обходит все страницы запущенной dev-сборки и сохраняет
-PNG-скриншоты в `docs/screenshots/` через протокол DevTools WebView2 — удобно, чтобы
-поддерживать README в актуальном состоянии:
-
-```bash
-# сначала запустите приложение с портом удалённой отладки, затем:
-node scripts/capture-screenshots.mjs 9222 docs/screenshots
-```
-
-
 ---
 
 <div align="center">
