@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Gamepad2, Heart, MoreHorizontal, Clock, Wifi } from "lucide-react";
+import { Check, Download, Gamepad2, Heart, MoreHorizontal, Clock } from "lucide-react";
 import { ContextMenu, type ContextMenuItem } from "@/components/ui/ContextMenu";
 import { Chip } from "@/components/ui/Chip";
 import { useT } from "@/hooks/useT";
@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useGamesStore } from "@/stores/gamesStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { cx, formatPlaytime, formatHMS, relativeTime } from "@/utils/format";
-import { canLaunch } from "@/utils/game";
+import { canLaunch, isSteamGame } from "@/utils/game";
 import type { Game } from "@/types";
 
 interface GameCardProps {
@@ -43,12 +43,36 @@ export function buildGameMenu(game: Game, t: ReturnType<typeof useT>): ContextMe
   return [
     {
       key: "play",
-      label: session.isRunning(game.id) ? t("game.stop") : t("game.play"),
-      icon: <Clock className="h-3.5 w-3.5" />,
+      label: session.isRunning(game.id)
+        ? t("game.stop")
+        : !game.isInstalled
+          ? isSteamGame(game)
+            ? t("game.download")
+            : t("game.notInstalled")
+          : t("game.play"),
+      icon:
+        !game.isInstalled && !session.isRunning(game.id) && isSteamGame(game) ? (
+          <Download className="h-3.5 w-3.5" />
+        ) : (
+          <Clock className="h-3.5 w-3.5" />
+        ),
+      disabled: !game.isInstalled && !isSteamGame(game),
       onSelect: () => {
         if (session.isRunning(game.id)) {
           void session.stop(game.id);
-        } else if (canLaunch(game)) {
+          return;
+        }
+        if (!game.isInstalled) {
+          if (isSteamGame(game)) {
+            void import("@/services/api")
+              .then(({ api }) => api.downloadGame(game.id))
+              .catch((e) =>
+                ui.pushToast({ kind: "error", title: t("toast.error"), body: String(e) }),
+              );
+          }
+          return;
+        }
+        if (canLaunch(game)) {
           void session
             .launch(game.id)
             .then(() => games.load(true))
@@ -152,7 +176,10 @@ export function GameCard({
               <img
                 src={game.coverPath}
                 alt={game.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+                className={cx(
+                  "h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
                 loading="lazy"
                 onError={onCoverError}
               />
@@ -229,7 +256,10 @@ export function GameCard({
               <img
                 src={game.coverPath}
                 alt=""
-                className="h-full w-full object-cover"
+                className={cx(
+                  "h-full w-full object-cover",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
                 loading="lazy"
                 onError={onCoverError}
               />
@@ -262,7 +292,10 @@ export function GameCard({
             ) : game.isInstalled ? (
               <Chip tone="default">{t("game.installed")}</Chip>
             ) : (
-              <Chip tone="warning">{t("game.notInstalled")}</Chip>
+              <Chip tone="danger">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                {t("game.notInstalled")}
+              </Chip>
             )}
             <button
               onClick={(e) => {
@@ -299,7 +332,10 @@ export function GameCard({
             <img
               src={game.coverPath}
               alt={game.title}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                className={cx(
+                  "h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]",
+                  !game.isInstalled && "opacity-60 saturate-[0.65]",
+                )}
               loading="lazy"
               onError={onCoverError}
             />
@@ -346,8 +382,15 @@ export function GameCard({
               {game.title}
             </p>
             <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] text-muted">
-              <span className="flex items-center gap-1">
-                <Wifi className={cx("h-3 w-3", game.isInstalled ? "text-emerald-400" : "text-amber-400")} />
+              <span className="flex items-center gap-1.5">
+                <span
+                  className={cx(
+                    "h-2 w-2 rounded-full shrink-0",
+                    game.isInstalled
+                      ? "bg-emerald-400"
+                      : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]",
+                  )}
+                />
                 {game.isInstalled ? t("game.installed") : t("game.notInstalled")}
               </span>
               <span className="flex items-center gap-1 text-dim">

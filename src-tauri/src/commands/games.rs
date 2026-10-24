@@ -1,17 +1,21 @@
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::Ordering;
+
 use rusqlite::{Connection, OptionalExtension};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::error::{AppError, AppResult};
 use crate::game::{achievements, theme};
-use crate::models::{BulkDeleteResult, Game, GameInput, GameTheme};
+use crate::models::{BulkDeleteResult, Game, GameInput, GameTheme, InstallStatusChange};
 use crate::process::monitor::ActiveMap;
 use crate::services::placeholder::placeholder_cover;
+use crate::services::steam::manifest;
 use crate::AppState;
 
 pub const SELECT_COLUMNS: &str = "id, title, description, executable_path, install_path, cover_path,
     background_path, icon_path, developer, publisher, genre, release_year, platform, source,
     controller_support, is_installed, is_favorite, is_hidden, created_at, updated_at,
-    last_played_at, total_playtime_seconds, launch_count";
+    last_played_at, total_playtime_seconds, launch_count, use_launcher, launcher_path, launcher_args";
 
 pub fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
     Ok(Game {
@@ -38,6 +42,9 @@ pub fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         last_played_at: row.get(20)?,
         total_playtime_seconds: row.get(21)?,
         launch_count: row.get(22)?,
+        use_launcher: row.get::<_, i64>(23)? != 0,
+        launcher_path: row.get(24)?,
+        launcher_args: row.get(25).ok().flatten(),
     })
 }
 
@@ -111,9 +118,25 @@ pub fn create_game(
         .filter(|c| !c.trim().is_empty())
         .unwrap_or_else(|| placeholder_cover(&title));
     let exe = input.executable_path.clone().filter(|p| !p.trim().is_empty());
-    let installed = input
-        .is_installed
-        .unwrap_or_else(|| exe.as_deref().map(|p| std::path::Path::new(p).exists()).unwrap_or(false));
+    let launcher = input.launcher_path.clone().filter(|p| !p.trim().is_empty());
+    let launcher_args = input
+        .launcher_args
+        .clone()
+        .map(|a| a.trim().to_string())
+        .filter(|a| !a.is_empty());
+    let use_launcher = input.use_launcher.unwrap_or(false) && launcher.is_some();
+    let installed = input.is_installed.unwrap_or_else(|| {
+        if use_launcher {
+            launcher
+                .as_deref()
+                .map(|p| std::path::Path::new(p).exists())
+                .unwrap_or(false)
+        } else {
+            exe.as_deref()
+                .map(|p| std::path::Path::new(p).exists())
+                .unwrap_or(false)
+        }
+    });
 
     let id = state.db.with(|conn| {
         conn.execute(
@@ -121,8 +144,9 @@ pub fn create_game(
                 "INSERT INTO games (title, description, executable_path, install_path, cover_path,
                     background_path, icon_path, developer, publisher, genre, release_year, platform,
                     source, controller_support, is_installed, is_favorite, is_hidden,
-                    created_at, updated_at, last_played_at, total_playtime_seconds, launch_count)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,NULL,0,0)"
+                    created_at, updated_at, last_played_at, total_playtime_seconds, launch_count,
+                    use_launcher, launcher_path, launcher_args)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,NULL,0,0,?20,?21,?22)"
             ),
             rusqlite::params![
                 title,
@@ -150,6 +174,9 @@ pub fn create_game(
                 input.is_hidden.unwrap_or(false) as i64,
                 now,
                 now,
+                use_launcher as i64,
+                launcher,
+                launcher_args,
             ],
         )?;
         let id = conn.last_insert_rowid();
@@ -186,8 +213,11 @@ pub fn update_game(
     if let Some(e) = input.executable_path {
         let e = e.trim().to_string();
         game.executable_path = if e.is_empty() { None } else { Some(e) };
-        if let Some(path) = &game.executable_path {
-            game.is_installed = std::path::Path::new(path).exists();
+        // Launcher-based games verify installation against the launcher executable.
+        if !game.use_launcher {
+            if let Some(path) = &game.executable_path {
+                game.is_installed = std::path::Path::new(path).exists();
+            }
         }
     }
     if let Some(p) = input.install_path {
@@ -223,6 +253,28 @@ pub fn update_game(
     if let Some(c) = input.controller_support {
         game.controller_support = c;
     }
+    // Launcher path first so `use_launcher` sees the fresh value.
+    let mut launcher_touched = false;
+    if let Some(l) = input.launcher_path {
+        let l = l.trim().to_string();
+        game.launcher_path = if l.is_empty() { None } else { Some(l) };
+        launcher_touched = true;
+    }
+    if let Some(a) = input.launcher_args {
+        let a = a.trim().to_string();
+        game.launcher_args = if a.is_empty() { None } else { Some(a) };
+    }
+    if let Some(v) = input.use_launcher {
+        game.use_launcher = v && game.launcher_path.is_some();
+        launcher_touched = true;
+    }
+    if launcher_touched && game.use_launcher {
+        game.is_installed = game
+            .launcher_path
+            .as_deref()
+            .map(|p| std::path::Path::new(p).exists())
+            .unwrap_or(false);
+    }
     if let Some(v) = input.is_installed {
         game.is_installed = v;
     }
@@ -239,8 +291,9 @@ pub fn update_game(
             "UPDATE games SET title=?1, description=?2, executable_path=?3, install_path=?4,
                 cover_path=?5, background_path=?6, icon_path=?7, developer=?8, publisher=?9,
                 genre=?10, release_year=?11, platform=?12, source=?13, controller_support=?14,
-                is_installed=?15, is_favorite=?16, is_hidden=?17, updated_at=?18
-             WHERE id=?19",
+                is_installed=?15, is_favorite=?16, is_hidden=?17, updated_at=?18,
+                use_launcher=?19, launcher_path=?20, launcher_args=?21
+             WHERE id=?22",
             rusqlite::params![
                 game.title,
                 game.description,
@@ -260,6 +313,9 @@ pub fn update_game(
                 game.is_favorite as i64,
                 game.is_hidden as i64,
                 now,
+                game.use_launcher as i64,
+                game.launcher_path,
+                game.launcher_args,
                 id
             ],
         )?;
@@ -398,15 +454,198 @@ pub fn set_game_executable(
     if path.trim().is_empty() {
         return Err(AppError::validation("Path is empty"));
     }
+    let game = get_game_internal(&state, id)?;
     let exists = std::path::Path::new(&path).exists();
     state.db.with(|conn| {
-        conn.execute(
-            "UPDATE games SET executable_path = ?1, is_installed = ?2, updated_at = ?3 WHERE id = ?4",
-            rusqlite::params![path, exists as i64, chrono::Utc::now().to_rfc3339(), id],
-        )?;
+        if game.use_launcher {
+            // For launcher-based games the picked file is the launcher executable.
+            conn.execute(
+                "UPDATE games SET launcher_path = ?1, is_installed = ?2, updated_at = ?3 WHERE id = ?4",
+                rusqlite::params![path, exists as i64, chrono::Utc::now().to_rfc3339(), id],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE games SET executable_path = ?1, is_installed = ?2, updated_at = ?3 WHERE id = ?4",
+                rusqlite::params![path, exists as i64, chrono::Utc::now().to_rfc3339(), id],
+            )?;
+        }
         Ok(())
     })?;
     get_game_internal(&state, id)
+}
+
+/// Resolves the real install state of one game.
+///
+/// Returns `None` when there is nothing to verify against (no paths, no Steam
+/// link, or Steam itself is not found) so the stored flag is left untouched.
+/// The second value is a refreshed `install_path` when Steam reports a new one.
+fn verify_target(
+    use_launcher: bool,
+    launcher_path: Option<&str>,
+    executable_path: Option<&str>,
+    install_path: Option<&str>,
+    appid: Option<u32>,
+    steam_apps: Option<&HashMap<u32, String>>,
+) -> Option<(bool, Option<String>)> {
+    if let Some(appid) = appid {
+        let apps = steam_apps?;
+        let installed = apps.contains_key(&appid);
+        let fresh_path = apps
+            .get(&appid)
+            .cloned()
+            .filter(|p| Some(p.as_str()) != install_path);
+        return Some((installed, fresh_path));
+    }
+    // Launcher-based games are installed as long as the launcher itself exists.
+    if use_launcher {
+        if let Some(l) = launcher_path.filter(|p| !p.trim().is_empty()) {
+            return Some((std::path::Path::new(l).exists(), None));
+        }
+        return Some((false, None));
+    }
+    if let Some(exe) = executable_path.filter(|p| !p.trim().is_empty()) {
+        return Some((std::path::Path::new(exe).exists(), None));
+    }
+    if let Some(dir) = install_path.filter(|p| !p.trim().is_empty()) {
+        return Some((std::path::Path::new(dir).is_dir(), None));
+    }
+    None
+}
+
+/// Re-checks every library entry against the disk (and Steam manifests) and
+/// flips `is_installed` when a game appeared or disappeared. Rows are never
+/// removed — uninstalled games stay in the library as "not installed".
+pub fn verify_installations_impl(
+    app: &AppHandle,
+    state: &AppState,
+) -> AppResult<Vec<InstallStatusChange>> {
+    if state.install_verifying.swap(true, Ordering::SeqCst) {
+        return Ok(Vec::new());
+    }
+    let outcome = run_install_verification(state);
+    state.install_verifying.store(false, Ordering::SeqCst);
+    let changes = outcome?;
+
+    if !changes.is_empty() {
+        log::info!("Install verification: {} status change(s)", changes.len());
+        let _ = app.emit("statistics-updated", serde_json::json!({}));
+    }
+    Ok(changes)
+}
+
+fn run_install_verification(state: &AppState) -> AppResult<Vec<InstallStatusChange>> {
+    if state.steam_syncing.load(Ordering::SeqCst) {
+        return Ok(Vec::new());
+    }
+
+    let steam_apps: Option<HashMap<u32, String>> = manifest::find_steam_root().map(|root| {
+        manifest::installed_apps(&root)
+            .into_iter()
+            .map(|app| (app.appid, app.install_path.to_string_lossy().into_owned()))
+            .collect()
+    });
+    if steam_apps.is_none() {
+        log::debug!("Install verification: Steam not found, Steam-linked games skipped");
+    }
+
+    let running: HashSet<i64> = state
+        .active
+        .lock()
+        .map(|m| m.keys().copied().collect())
+        .unwrap_or_default();
+
+    let rows: Vec<(i64, Option<String>, Option<String>, bool, Option<u32>, bool, Option<String>)> =
+        state.db.with(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT g.id, g.executable_path, g.install_path, g.is_installed, sg.appid,
+                        g.use_launcher, g.launcher_path
+                 FROM games g LEFT JOIN steam_games sg ON sg.game_id = g.id",
+            )?;
+            let rows = stmt.query_map([], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, i64>(3)? != 0,
+                    r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
+                    r.get::<_, i64>(5)? != 0,
+                    r.get::<_, Option<String>>(6)?,
+                ))
+            })?;
+            rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+        })?;
+
+    // Pure filesystem reads — computed before touching the database.
+    let mut plan: Vec<(i64, bool, bool, Option<String>)> = Vec::new();
+    for (id, exe, install_path, is_installed, appid, use_launcher, launcher_path) in rows {
+        if running.contains(&id) {
+            continue;
+        }
+        let Some((verified, fresh_path)) = verify_target(
+            use_launcher,
+            launcher_path.as_deref(),
+            exe.as_deref(),
+            install_path.as_deref(),
+            appid,
+            steam_apps.as_ref(),
+        ) else {
+            continue;
+        };
+        if verified != is_installed || fresh_path.is_some() {
+            plan.push((id, verified, verified != is_installed, fresh_path));
+        }
+    }
+
+    if plan.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let changes = state.db.with(|conn| {
+        conn.execute_batch("BEGIN IMMEDIATE")?;
+        let outcome: AppResult<Vec<InstallStatusChange>> = (|| {
+            let mut changes = Vec::new();
+            for (id, verified, status_changed, fresh_path) in &plan {
+                if let Some(path) = fresh_path {
+                    conn.execute(
+                        "UPDATE games SET install_path = ?1, is_installed = ?2 WHERE id = ?3",
+                        rusqlite::params![path, *verified as i64, id],
+                    )?;
+                } else {
+                    conn.execute(
+                        "UPDATE games SET is_installed = ?1 WHERE id = ?2",
+                        rusqlite::params![*verified as i64, id],
+                    )?;
+                }
+                if *status_changed {
+                    changes.push(InstallStatusChange {
+                        id: *id,
+                        is_installed: *verified,
+                    });
+                }
+            }
+            Ok(changes)
+        })();
+        match outcome {
+            Ok(changes) => {
+                conn.execute_batch("COMMIT")?;
+                Ok(changes)
+            }
+            Err(err) => {
+                let _ = conn.execute_batch("ROLLBACK");
+                Err(err)
+            }
+        }
+    })?;
+    Ok(changes)
+}
+
+/// Verifies that every game in the library still exists on disk.
+#[tauri::command]
+pub fn verify_installations(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<InstallStatusChange>> {
+    verify_installations_impl(&app, &state)
 }
 
 #[tauri::command]
@@ -485,5 +724,80 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM games", [], |r| r.get(0))
             .expect("count");
         assert_eq!(count, 1);
+    }
+
+    fn steam_apps() -> HashMap<u32, String> {
+        HashMap::from([(730u32, r"D:\Steam\steamapps\common\CS2".to_string())])
+    }
+
+    #[test]
+    fn verify_target_tracks_steam_installs() {
+        let apps = steam_apps();
+
+        // Installed — path refreshed when Steam reports a different one.
+        let (installed, fresh) = verify_target(
+            None,
+            Some(r"E:\old\CS2"),
+            Some(730),
+            Some(&apps),
+        )
+        .expect("verifiable");
+        assert!(installed);
+        assert_eq!(fresh.as_deref(), Some(r"D:\Steam\steamapps\common\CS2"));
+
+        // Installed with an up-to-date path — no refresh needed.
+        let (installed, fresh) = verify_target(
+            None,
+            Some(r"D:\Steam\steamapps\common\CS2"),
+            Some(730),
+            Some(&apps),
+        )
+        .expect("verifiable");
+        assert!(installed);
+        assert!(fresh.is_none());
+
+        // Uninstalled — flagged but the row and its path stay untouched.
+        let (installed, fresh) = verify_target(None, Some(r"E:\old\CS2"), Some(440), Some(&apps))
+            .expect("verifiable");
+        assert!(!installed);
+        assert!(fresh.is_none());
+
+        // Steam itself is missing — nothing to verify against, keep the flag.
+        assert!(verify_target(None, Some(r"E:\old\CS2"), Some(730), None).is_none());
+    }
+
+    #[test]
+    fn verify_target_checks_local_paths() {
+        let dir = std::env::temp_dir().join(format!(
+            "gs-verify-test-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let exe = dir.join("game.exe");
+        std::fs::write(&exe, b"x").expect("temp exe");
+        let exe_str = exe.to_string_lossy().to_string();
+        let dir_str = dir.to_string_lossy().to_string();
+        let missing = dir.join("gone.exe").to_string_lossy().to_string();
+
+        let (installed, fresh) =
+            verify_target(Some(&exe_str), Some(&dir_str), None, None).expect("verifiable");
+        assert!(installed);
+        assert!(fresh.is_none());
+
+        let (installed, _) =
+            verify_target(Some(&missing), Some(&dir_str), None, None).expect("verifiable");
+        assert!(!installed);
+
+        // No executable — the install directory is the fallback check.
+        let (installed, _) = verify_target(None, Some(&dir_str), None, None).expect("verifiable");
+        assert!(installed);
+        let (installed, _) = verify_target(None, Some(&missing), None, None).expect("verifiable");
+        assert!(!installed);
+
+        // Nothing to check against.
+        assert!(verify_target(None, None, None, None).is_none());
+        assert!(verify_target(Some(""), Some("  "), None, None).is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

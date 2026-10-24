@@ -68,6 +68,9 @@ export function GameFormModal() {
     releaseYear: "",
     platform: "PC",
     coverPath: "",
+    useLauncher: false,
+    launcherPath: "",
+    launcherArgs: "",
   });
   const [busy, setBusy] = useState(false);
   const [igdbBusy, setIgdbBusy] = useState(false);
@@ -85,6 +88,9 @@ export function GameFormModal() {
         releaseYear: editing.releaseYear ? String(editing.releaseYear) : "",
         platform: editing.platform,
         coverPath: editing.coverPath ?? "",
+        useLauncher: editing.useLauncher,
+        launcherPath: editing.launcherPath ?? "",
+        launcherArgs: editing.launcherArgs ?? "",
       });
       setIgdbResults(null);
     } else if (open) {
@@ -98,8 +104,10 @@ export function GameFormModal() {
         releaseYear: "",
         platform: "PC",
         coverPath: "",
+        useLauncher: false,
+        launcherPath: "",
+        launcherArgs: "",
       });
-      setIgdbResults(null);
     }
   }, [open, editing, prefill]);
 
@@ -161,12 +169,22 @@ export function GameFormModal() {
     }
   };
 
+  const pickLauncher = async () => {
+    try {
+      const path = await api.selectGameExecutable();
+      if (path) setForm((f) => ({ ...f, launcherPath: path }));
+    } catch (e) {
+      pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
+    }
+  };
+
   const submit = async () => {
     if (!form.title.trim()) {
       pushToast({ kind: "error", title: t("toast.error"), body: "Title required" });
       return;
     }
     setBusy(true);
+    const launcherPath = form.useLauncher ? (form.launcherPath || null) : null;
     const payload: GameInput = {
       title: form.title.trim(),
       description: form.description,
@@ -177,13 +195,19 @@ export function GameFormModal() {
       releaseYear: form.releaseYear ? Number(form.releaseYear) : null,
       platform: form.platform,
       coverPath: form.coverPath || null,
+      useLauncher: form.useLauncher,
+      launcherPath,
+      launcherArgs: form.useLauncher ? (form.launcherArgs || null) : null,
     };
     try {
       if (editing) {
         await update(editing.id, payload);
         pushToast({ kind: "success", title: form.title });
       } else {
-        await create({ ...payload, isInstalled: !!form.executablePath });
+        const isInstalled = form.useLauncher
+          ? Boolean(form.launcherPath)
+          : Boolean(form.executablePath);
+        await create({ ...payload, isInstalled });
         pushToast({ kind: "success", title: t("dialog.add"), body: form.title });
       }
       await load(true);
@@ -258,21 +282,74 @@ export function GameFormModal() {
           )}
         </div>
 
+        {/* Launch mode — Game / Launcher */}
         <div>
-          <span className="block text-[12px] font-medium text-muted uppercase tracking-wide mb-1.5">
-            {t("game.specifyFile")}
+          <span className="block text-[12px] font-medium text-muted uppercase tracking-wide mb-2">
+            {t("game.launchMode")}
           </span>
-          <div className="flex gap-2">
-            <input
-              value={form.executablePath}
-              onChange={(e) => setForm({ ...form, executablePath: e.target.value })}
-              placeholder="/path/to/game"
-              className="flex-1 h-10 px-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm text-ink placeholder:text-dim outline-none focus:border-[var(--color-accent)]/60"
-            />
-            <Button variant="secondary" onClick={() => void pickExe()}>
-              …
-            </Button>
+          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.05] border border-white/10 mb-3">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, useLauncher: false }))}
+              className={
+                "!flex-1 !h-8 !rounded-lg !text-sm !font-medium !transition-all " +
+                (!form.useLauncher
+                  ? "!bg-[var(--color-accent)] !text-white"
+                  : "!bg-transparent !text-dim hover:!bg-white/[0.06] hover:!text-ink")
+              }
+            >
+              {t("game.launchModeGame")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, useLauncher: true }))}
+              className={
+                "!flex-1 !h-8 !rounded-lg !text-sm !font-medium !transition-all " +
+                (form.useLauncher
+                  ? "!bg-[var(--color-accent)] !text-white"
+                  : "!bg-transparent !text-dim hover:!bg-white/[0.06] hover:!text-ink")
+              }
+            >
+              {t("game.launchModeLauncher")}
+            </button>
           </div>
+
+          {!form.useLauncher ? (
+            /* Direct game exe path */
+            <div className="flex gap-2">
+              <input
+                value={form.executablePath}
+                onChange={(e) => setForm((f) => ({ ...f, executablePath: e.target.value }))}
+                placeholder="/path/to/game.exe"
+                className="flex-1 h-10 px-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm text-ink placeholder:text-dim outline-none focus:border-[var(--color-accent)]/60"
+              />
+              <Button variant="secondary" onClick={() => void pickExe()}>
+                …
+              </Button>
+            </div>
+          ) : (
+            /* Launcher path + optional args */
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  value={form.launcherPath}
+                  onChange={(e) => setForm((f) => ({ ...f, launcherPath: e.target.value }))}
+                  placeholder={t("game.launcherPathPlaceholder")}
+                  className="flex-1 h-10 px-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm text-ink placeholder:text-dim outline-none focus:border-[var(--color-accent)]/60"
+                />
+                <Button variant="secondary" onClick={() => void pickLauncher()}>
+                  …
+                </Button>
+              </div>
+              <input
+                value={form.launcherArgs}
+                onChange={(e) => setForm((f) => ({ ...f, launcherArgs: e.target.value }))}
+                placeholder={t("game.launcherArgsPlaceholder")}
+                className="w-full h-9 px-3 rounded-xl bg-white/[0.05] border border-white/10 text-sm text-ink placeholder:text-dim outline-none focus:border-[var(--color-accent)]/60"
+              />
+              <p className="text-[11px] text-dim leading-relaxed">{t("game.launcherArgsHint")}</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">

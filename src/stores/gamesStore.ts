@@ -14,6 +14,7 @@ interface GamesState {
   removeMany: (ids: number[]) => Promise<BulkDeleteResult>;
   toggleFavorite: (id: number) => Promise<void>;
   setExecutable: (id: number, path: string) => Promise<Game>;
+  verifyInstallStatus: () => Promise<number>;
   upsertLocal: (game: Game) => void;
 }
 
@@ -71,6 +72,19 @@ export const useGamesStore = create<GamesState>((set, get) => ({
     const game = await api.setGameExecutable(id, path);
     set({ games: get().games.map((g) => (g.id === id ? game : g)) });
     return game;
+  },
+
+  verifyInstallStatus: async () => {
+    const changes = await api.verifyInstallations();
+    if (changes.length > 0) {
+      const status = new Map(changes.map((c) => [c.id, c.isInstalled]));
+      set({
+        games: get().games.map((g) =>
+          status.has(g.id) ? { ...g, isInstalled: status.get(g.id) ?? g.isInstalled } : g,
+        ),
+      });
+    }
+    return changes.length;
   },
 
   upsertLocal: (game) => {

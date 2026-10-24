@@ -10,6 +10,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "003_achievements_key",
         include_str!("../../../migrations/003_achievements_key.sql"),
     ),
+    ("004_launcher", include_str!("../../../migrations/004_launcher.sql")),
+    (
+        "005_launcher_args",
+        include_str!("../../../migrations/005_launcher_args.sql"),
+    ),
 ];
 
 /// Applies all pending migrations inside a transaction-ish sequence.

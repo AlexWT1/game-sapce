@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronRight, Gamepad2, Plus, Trophy, Users } from "lucide-react";
+import { ChevronRight, Gamepad2, Plus, Sparkles, Trophy, Users } from "lucide-react";
 import { HeroSection } from "@/components/home/HeroSection";
 import { StatsPanel } from "@/components/home/StatsPanel";
 import { GameGrid } from "@/components/game/GameGrid";
@@ -52,7 +52,8 @@ export function HomePage() {
           <GameGrid games={all} loading={loading} onAdd={() => openAddGame()} />
         </section>
 
-        <div className="grid sm:grid-cols-3 gap-4 pb-4">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 pb-4">
+          <QuickLink to="/recap" icon={<Sparkles className="h-5 w-5 text-violet-400" />} label={t("recap.title")} />
           <QuickLink to="/achievements" icon={<Trophy className="h-5 w-5 text-amber-400" />} label={t("nav.achievements")} />
           <QuickLink to="/statistics" icon={<Gamepad2 className="h-5 w-5 text-sky-400" />} label={t("nav.statistics")} />
           <QuickLink to="/friends" icon={<Users className="h-5 w-5 text-emerald-400" />} label={t("nav.friends")} />

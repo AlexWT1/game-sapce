@@ -19,6 +19,15 @@ pub struct Game {
     pub source: String,
     pub controller_support: String,
     pub is_installed: bool,
+    /// The game must be started through its own launcher (`launcher_path`).
+    #[serde(default)]
+    pub use_launcher: bool,
+    /// Executable of the game launcher itself (not the game).
+    #[serde(default)]
+    pub launcher_path: Option<String>,
+    /// Extra command-line arguments passed to the launcher on start.
+    #[serde(default)]
+    pub launcher_args: Option<String>,
     pub is_favorite: bool,
     pub is_hidden: bool,
     pub created_at: String,
@@ -45,6 +54,9 @@ pub struct GameInput {
     pub platform: Option<String>,
     pub source: Option<String>,
     pub controller_support: Option<String>,
+    pub use_launcher: Option<bool>,
+    pub launcher_path: Option<String>,
+    pub launcher_args: Option<String>,
     pub is_installed: Option<bool>,
     pub is_favorite: Option<bool>,
     pub is_hidden: Option<bool>,
@@ -187,6 +199,14 @@ pub struct SteamSyncResult {
     pub installed: i64,
     pub added: i64,
     pub updated: i64,
+}
+
+/// A game whose `is_installed` flag flipped during a verification pass.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallStatusChange {
+    pub id: i64,
+    pub is_installed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

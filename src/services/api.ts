@@ -10,6 +10,7 @@ import type {
   GameStatistics,
   GameTheme,
   IgdbGameMeta,
+  InstallStatusChange,
   RunningGame,
   SearchResults,
   SettingsMap,
@@ -42,6 +43,8 @@ export const api = {
   toggleFavorite: (id: number) => call<Game>("toggle_favorite", { id }),
   setGameExecutable: (id: number, path: string) =>
     call<Game>("set_game_executable", { id, path }),
+  verifyInstallations: () =>
+    call<InstallStatusChange[]>("verify_installations"),
 
   // themes
   getGameTheme: (gameId: number) => call<GameTheme>("get_game_theme", { gameId }),
@@ -49,6 +52,7 @@ export const api = {
 
   // launch / sessions
   launchGame: (gameId: number) => call<RunningGame>("launch_game", { gameId }),
+  downloadGame: (gameId: number) => call<void>("download_game", { gameId }),
   stopGame: (gameId: number) => call<void>("stop_game", { gameId }),
   getRunningGames: () => call<RunningGame[]>("get_running_games"),
   isGameRunning: (gameId: number) => call<boolean>("is_game_running", { gameId }),
@@ -59,8 +63,11 @@ export const api = {
   getGameSessions: (gameId: number) =>
     call<GameSession[]>("get_game_sessions", { gameId }),
 
-  // statistics
-  getStatistics: () => call<Statistics>("get_statistics"),
+  // statistics — `from`/`to` are YYYY-MM-DD dates (`to` exclusive) for the
+  // session-based range mode; omitted → lifetime aggregates (Steam-seeded
+  // totals included).
+  getStatistics: (from?: string | null, to?: string | null) =>
+    call<Statistics>("get_statistics", { from: from ?? null, to: to ?? null }),
   getGameStatistics: (gameId: number) =>
     call<GameStatistics>("get_game_statistics", { gameId }),
 

@@ -139,7 +139,10 @@ export function GameDetailsPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {game.genre && <Chip tone="accent">{game.genre}</Chip>}
                 {game.releaseYear && <Chip>{game.releaseYear}</Chip>}
-                <Chip tone={game.isInstalled ? "success" : "warning"}>
+                <Chip tone={game.isInstalled ? "success" : "danger"}>
+                  {!game.isInstalled && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                  )}
                   {game.isInstalled ? t("game.installed") : t("game.notInstalled")}
                 </Chip>
                 {game.controllerSupport !== "unknown" && (
@@ -210,6 +213,23 @@ export function GameDetailsPage() {
                 {t("game.specifyFile")}
               </p>
               <code className="block text-[12.5px] text-muted break-all">{game.executablePath}</code>
+            </div>
+          )}
+
+          {game.useLauncher && game.launcherPath && (
+            <div className="mt-4">
+              <p className="text-[11px] uppercase tracking-wide text-dim mb-1.5">
+                {t("game.launcherPath")}
+              </p>
+              <code className="block text-[12.5px] text-muted break-all">{game.launcherPath}</code>
+              {game.launcherArgs && (
+                <p className="mt-1.5">
+                  <span className="text-[11px] uppercase tracking-wide text-dim">
+                    {t("game.launcherArgs")}:{" "}
+                  </span>
+                  <code className="text-[12.5px] text-muted">{game.launcherArgs}</code>
+                </p>
+              )}
             </div>
           )}
         </section>

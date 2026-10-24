@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BarChart3, Clock, Gamepad2, Layers, Trophy } from "lucide-react";
+import { BarChart3, Clock, Gamepad2, Layers, Sparkles, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { GenreChart, PlaytimeChart } from "@/components/charts/Charts";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -81,9 +81,18 @@ export function StatisticsPage() {
     <div className="p-5 space-y-5 min-h-full">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-ink">{t("stats.title")}</h1>
-        <span className="text-[12.5px] text-dim">
-          {t("stats.longestSession")}: {formatPlaytime(stats.longestSessionSeconds)}
-        </span>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/recap"
+            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/15 text-[13px] text-ink hover:bg-white/8 hover:border-white/25 transition"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+            {t("recap.viewRecap")}
+          </Link>
+          <span className="text-[12.5px] text-dim">
+            {t("stats.longestSession")}: {formatPlaytime(stats.longestSessionSeconds)}
+          </span>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">

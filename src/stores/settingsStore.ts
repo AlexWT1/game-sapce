@@ -21,6 +21,8 @@ interface SettingsState {
   notifyFriendOnline: boolean;
   notifySessionEnd: boolean;
   onboardingDone: boolean;
+  /** Which Recap auto-show slot was already consumed ("test:2026-10" / "auto:2026-10"). */
+  recapShownKey: string | null;
   hydrated: boolean;
   set: (partial: Partial<Omit<SettingsState, "set" | "translate">>) => void;
   translate: (key: keyof (typeof dictionaries)["ru"]) => string;
@@ -53,6 +55,7 @@ export const useSettingsStore = create<SettingsState>()(
       notifyFriendOnline: true,
       notifySessionEnd: true,
       onboardingDone: false,
+      recapShownKey: null,
       hydrated: false,
       set: (partial) => set(partial),
       translate: (key) => {
@@ -78,6 +81,7 @@ export const useSettingsStore = create<SettingsState>()(
         notifyFriendOnline: s.notifyFriendOnline,
         notifySessionEnd: s.notifySessionEnd,
         onboardingDone: s.onboardingDone,
+        recapShownKey: s.recapShownKey,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

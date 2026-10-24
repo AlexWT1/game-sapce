@@ -7,9 +7,53 @@ use crate::models::{GameStatistics, PlaytimeByDay, RankedPlaytime, Statistics};
 use crate::AppState;
 
 #[tauri::command]
-pub fn get_statistics(state: State<'_, AppState>) -> AppResult<Statistics> {
-    state.db.with(|conn| build_statistics(conn))
+pub fn get_statistics(
+    state: State<'_, AppState>,
+    from: Option<String>,
+    to: Option<String>,
+) -> AppResult<Statistics> {
+    state.db.with(|conn| match (from, to) {
+        (Some(f), Some(t)) if !f.is_empty() && !t.is_empty() => {
+            parse_date(&f)?;
+            parse_date(&t)?;
+            build_range_statistics(conn, &f, &t)
+        }
+        _ => build_statistics(conn),
+    })
 }
+
+/// Parses a strict `YYYY-MM-DD` date (also rejects trailing garbage).
+fn parse_date(s: &str) -> AppResult<chrono::NaiveDate> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|e| crate::error::AppError::Other(format!("bad date '{s}': {e}")))
+}
+
+/// `WHERE` fragment over game_sessions joined to games with a [from, to)
+/// window on `started_at` (RFC3339/ISO strings compare correctly lexicographically
+/// because the date prefix is `YYYY-MM-DD`).
+fn range_join(demo_off: bool) -> &'static str {
+    if demo_off {
+        " FROM game_sessions gs
+         JOIN games g ON g.id = gs.game_id AND g.source != 'Demo'
+         WHERE gs.started_at >= ?1 AND gs.started_at < ?2"
+    } else {
+        " FROM game_sessions gs
+         JOIN games g ON g.id = gs.game_id
+         WHERE gs.started_at >= ?1 AND gs.started_at < ?2"
+    }
+}
+
+fn range_scalar(
+    conn: &Connection,
+    sql: &str,
+    from: &str,
+    to: &str,
+) -> AppResult<i64> {
+    Ok(conn.query_row(sql, rusqlite::params![from, to], |r| {
+        r.get::<_, Option<i64>>(0).map(|v| v.unwrap_or(0))
+    })?)
+}
+
 
 fn scalar_i64(conn: &Connection, sql: &str) -> Result<i64, rusqlite::Error> {
     conn.query_row(sql, [], |r| r.get(0)).map(|v: Option<i64>| v.unwrap_or(0))
@@ -151,6 +195,249 @@ pub fn build_statistics(conn: &Connection) -> AppResult<Statistics> {
         avg_session_seconds,
         longest_session_seconds,
     })
+}
+
+/// Statistics for a concrete [from, to) date window (YYYY-MM-DD strings, `to`
+/// exclusive). Every session-based aggregate comes only from sessions inside
+/// the window; library scalars (installed/favorite/achievementsTotal) stay
+/// current-state. Used by the Recap feature.
+pub fn build_range_statistics(conn: &Connection, from: &str, to: &str) -> AppResult<Statistics> {
+    let demo_off = crate::commands::settings::demo_disabled(conn)?;
+    let join = range_join(demo_off);
+    let gand = if demo_off { " AND source != 'Demo'" } else { "" };
+
+    let total_playtime_seconds = range_scalar(
+        conn,
+        &format!("SELECT COALESCE(SUM(gs.duration_seconds), 0){join}"),
+        from,
+        to,
+    )?;
+    let games_count = range_scalar(
+        conn,
+        &format!("SELECT COUNT(DISTINCT gs.game_id){join}"),
+        from,
+        to,
+    )?;
+    let sessions_count = range_scalar(
+        conn,
+        &format!("SELECT COUNT(*){join} AND gs.ended_at IS NOT NULL"),
+        from,
+        to,
+    )?;
+    let avg_session_seconds = range_scalar(
+        conn,
+        &format!(
+            "SELECT CAST(AVG(gs.duration_seconds) AS INTEGER){join}
+             AND gs.ended_at IS NOT NULL AND gs.duration_seconds > 0"
+        ),
+        from,
+        to,
+    )?;
+    let longest_session_seconds = range_scalar(
+        conn,
+        &format!("SELECT COALESCE(MAX(gs.duration_seconds), 0){join}"),
+        from,
+        to,
+    )?;
+
+    let ach_demo = if demo_off {
+        "LEFT JOIN games g ON g.id = a.game_id
+         WHERE (a.game_id IS NULL OR g.source != 'Demo')"
+    } else {
+        ""
+    };
+    let achievements_total =
+        scalar_i64(conn, &format!("SELECT COUNT(*) FROM achievements a {ach_demo}"))?;
+    let achievements_unlocked = {
+        let base = if demo_off {
+            "SELECT COUNT(*) FROM achievements a
+             LEFT JOIN games g ON g.id = a.game_id
+             WHERE (a.game_id IS NULL OR g.source != 'Demo')"
+        } else {
+            "SELECT COUNT(*) FROM achievements a
+             WHERE"
+        };
+        if demo_off {
+            range_scalar(
+                conn,
+                &format!(
+                    "{base} AND a.unlocked = 1
+                     AND a.unlocked_at IS NOT NULL
+                     AND a.unlocked_at >= ?1 AND a.unlocked_at < ?2"
+                ),
+                from,
+                to,
+            )?
+        } else {
+            range_scalar(
+                conn,
+                &format!(
+                    "{base} a.unlocked = 1
+                     AND a.unlocked_at IS NOT NULL
+                     AND a.unlocked_at >= ?1 AND a.unlocked_at < ?2"
+                ),
+                from,
+                to,
+            )?
+        }
+    };
+
+    let installed_count = scalar_i64(
+        conn,
+        &format!("SELECT COUNT(*) FROM games WHERE is_installed = 1{gand}"),
+    )?;
+    let favorite_count = scalar_i64(
+        conn,
+        &format!("SELECT COUNT(*) FROM games WHERE is_favorite = 1{gand}"),
+    )?;
+
+    let most_played = {
+        let mut stmt = conn.prepare(&format!(
+            "SELECT g.id, g.title, COALESCE(SUM(gs.duration_seconds), 0), g.cover_path{join}
+             GROUP BY g.id, g.title, g.cover_path
+             ORDER BY 3 DESC
+             LIMIT 5"
+        ))?;
+        let rows = stmt.query_map(rusqlite::params![from, to], |r| {
+            Ok(RankedPlaytime {
+                game_id: r.get(0)?,
+                title: r.get(1)?,
+                seconds: r.get(2)?,
+                cover_path: r.get(3)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+
+    let by_genre = {
+        let mut stmt = conn.prepare(&format!(
+            "SELECT CASE WHEN g.genre = '' THEN 'Другое' ELSE g.genre END AS g, COUNT(DISTINCT gs.game_id) AS c{join}
+             GROUP BY g
+             ORDER BY c DESC"
+        ))?;
+        let rows = stmt.query_map(rusqlite::params![from, to], |r| {
+            Ok(crate::models::GenreCount {
+                genre: r.get(0)?,
+                count: r.get(1)?,
+            })
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+
+    let daily = duration_daily_range(conn, from, to, demo_off)?;
+    let weekly = duration_grid_range(conn, from, to, demo_off, "weeks")?;
+    let monthly = duration_grid_range(conn, from, to, demo_off, "months")?;
+
+    Ok(Statistics {
+        total_playtime_seconds,
+        games_count,
+        installed_count,
+        sessions_count,
+        achievements_unlocked,
+        achievements_total,
+        favorite_count,
+        most_played,
+        by_genre,
+        daily,
+        weekly,
+        monthly,
+        avg_session_seconds,
+        longest_session_seconds,
+    })
+}
+
+/// Session seconds bucketed per day across the whole [from, to) window,
+/// zero-filled for days without sessions.
+fn duration_daily_range(
+    conn: &Connection,
+    from: &str,
+    to: &str,
+    demo_off: bool,
+) -> AppResult<Vec<PlaytimeByDay>> {
+    let mut sums = bucket_sums(conn, from, to, demo_off, "date(gs.started_at)")?;
+
+    let start = parse_date(from)?;
+    let end = parse_date(to)?;
+    let mut out = Vec::new();
+    let mut cursor = start;
+    while cursor < end {
+        let key = cursor.format("%Y-%m-%d").to_string();
+        let seconds = sums.remove(&key).unwrap_or(0);
+        out.push(PlaytimeByDay { date: key, seconds });
+        cursor += chrono::Duration::days(1);
+    }
+    Ok(out)
+}
+
+/// Session seconds bucketed by week (Monday-aligned) or month across [from, to),
+/// zero-filled for empty buckets. `unit` is "weeks" or "months".
+fn duration_grid_range(
+    conn: &Connection,
+    from: &str,
+    to: &str,
+    demo_off: bool,
+    unit: &str,
+) -> AppResult<Vec<PlaytimeByDay>> {
+    let bucket = match unit {
+        "months" => "strftime('%Y-%m-01', gs.started_at)",
+        _ => "date(gs.started_at, '-' || ((strftime('%w', gs.started_at) + 6) % 7) || ' days')",
+    };
+    let mut sums = bucket_sums(conn, from, to, demo_off, bucket)?;
+
+    let start = parse_date(from)?;
+    let end = parse_date(to)?;
+    let mut out = Vec::new();
+
+    if unit == "months" {
+        // Align to the month containing `from`, step whole months.
+        let mut cursor = start.with_day(1).unwrap_or(start);
+        while cursor < end {
+            let key = cursor.format("%Y-%m-01").to_string();
+            let seconds = sums.remove(&key).unwrap_or(0);
+            out.push(PlaytimeByDay { date: key, seconds });
+            cursor = cursor
+                .checked_add_months(chrono::Months::new(1))
+                .ok_or_else(|| crate::error::AppError::Other("date overflow".into()))?;
+        }
+    } else {
+        // Align to the ISO week (Monday) containing `from`, step 7 days.
+        let dow = start.weekday().num_days_from_monday() as u64;
+        let mut cursor = start - chrono::Duration::days(dow as i64);
+        while cursor < end {
+            let key = cursor.format("%Y-%m-%d").to_string();
+            let seconds = sums.remove(&key).unwrap_or(0);
+            out.push(PlaytimeByDay { date: key, seconds });
+            cursor += chrono::Duration::days(7);
+        }
+    }
+    Ok(out)
+}
+
+/// Runs a grouped SUM query over game_sessions in [from, to) with the given
+/// bucket expression and returns bucket -> seconds.
+fn bucket_sums(
+    conn: &Connection,
+    from: &str,
+    to: &str,
+    demo_off: bool,
+    bucket: &str,
+) -> AppResult<std::collections::HashMap<String, i64>> {
+    let sql = format!(
+        "SELECT {bucket} AS b, COALESCE(SUM(gs.duration_seconds), 0) AS secs{} GROUP BY b",
+        range_join(demo_off)
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = stmt.query_map(rusqlite::params![from, to], |r| {
+        Ok((r.get::<_, Option<String>>(0)?.unwrap_or_default(), r.get::<_, i64>(1)?))
+    })?;
+    let mut sums = std::collections::HashMap::new();
+    for row in rows {
+        let (date, seconds) = row?;
+        if !date.is_empty() {
+            sums.insert(date, seconds);
+        }
+    }
+    Ok(sums)
 }
 
 fn duration_by_period(

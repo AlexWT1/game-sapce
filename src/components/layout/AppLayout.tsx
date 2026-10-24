@@ -6,10 +6,12 @@ import { CommandPalette } from "@/components/command/CommandPalette";
 import { ToastHost } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { RecapAutoShow } from "@/features/recap/RecapAutoShow";
 import { GameFormModal } from "@/features/games/GameFormModal";
 import { MissingExecutableDialog } from "@/features/games/MissingExecutableDialog";
 import { useHotkeys } from "@/hooks/useHotkeys";
 import { useAppEvents } from "@/hooks/useAppEvents";
+import { useInstallVerify } from "@/hooks/useInstallVerify";
 import { useT } from "@/hooks/useT";
 import { useUiStore } from "@/stores/uiStore";
 import { useSettingsStore, applyAccent, applyVisualPreferences } from "@/stores/settingsStore";
@@ -34,6 +36,7 @@ export function AppLayout() {
   const transparency = useSettingsStore((s) => s.transparency);
 
   useAppEvents();
+  useInstallVerify();
 
   const hotkeys = useMemo(
     () => [
@@ -177,6 +180,7 @@ export function AppLayout() {
       <MissingExecutableDialog />
       <ConfirmDialog />
       <ToastHost />
+      <RecapAutoShow />
 
       {dragOver && (
         <div className="drag-overlay" onDragLeave={() => setDragOver(false)}>
