@@ -6,6 +6,7 @@ import { CommandPalette } from "@/components/command/CommandPalette";
 import { ToastHost } from "@/components/ui/Toast";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { RecapAutoShow } from "@/features/recap/RecapAutoShow";
 import { GameFormModal } from "@/features/games/GameFormModal";
 import { MissingExecutableDialog } from "@/features/games/MissingExecutableDialog";
 import { useHotkeys } from "@/hooks/useHotkeys";
@@ -179,6 +180,7 @@ export function AppLayout() {
       <MissingExecutableDialog />
       <ConfirmDialog />
       <ToastHost />
+      <RecapAutoShow />
 
       {dragOver && (
         <div className="drag-overlay" onDragLeave={() => setDragOver(false)}>

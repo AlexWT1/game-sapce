@@ -19,9 +19,11 @@ interface RecapSlideshowProps {
   data: RecapData;
   period: RecapPeriod;
   onPeriodChange: (period: RecapPeriod) => void;
+  /** Custom close target (used by the auto-show overlay); defaults to navigating to /statistics. */
+  onClose?: () => void;
 }
 
-export function RecapSlideshow({ data, period, onPeriodChange }: RecapSlideshowProps) {
+export function RecapSlideshow({ data, period, onPeriodChange, onClose }: RecapSlideshowProps) {
   const t = useT();
   const locale = useLocale();
   const navigate = useNavigate();
@@ -31,7 +33,10 @@ export function RecapSlideshow({ data, period, onPeriodChange }: RecapSlideshowP
 
   const next = useCallback(() => setIndex((i) => Math.min(total - 1, i + 1)), []);
   const prev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
-  const close = useCallback(() => navigate("/statistics"), [navigate]);
+  const close = useCallback(() => {
+    if (onClose) onClose();
+    else navigate("/statistics");
+  }, [onClose, navigate]);
 
   // Keyboard navigation: ← / → / Escape.
   useEffect(() => {

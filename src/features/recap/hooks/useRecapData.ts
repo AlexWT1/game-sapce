@@ -56,7 +56,10 @@ export function recapRange(period: RecapPeriod): { from: string; to: string } {
  * from the ranged `get_statistics` (backend filters by `started_at` window),
  * so Steam-seeded lifetime playtime never leaks into a month/year recap.
  */
-export function useRecapData(period: RecapPeriod): { data: RecapData | null; loading: boolean } {
+export function useRecapData(
+  period: RecapPeriod,
+  enabled = true,
+): { data: RecapData | null; loading: boolean } {
   const { from, to } = useMemo(() => recapRange(period), [period]);
   const range = statsRangeKey(from, to);
 
@@ -68,15 +71,17 @@ export function useRecapData(period: RecapPeriod): { data: RecapData | null; loa
   const achLoading = useAchievementsStore((s) => s.loading);
   const loadAchievements = useAchievementsStore((s) => s.load);
 
+  // Only fetch (and thus swap the shared stats cache) when the hook is used
+  // for a recap that is actually shown — background consumers pass enabled=false.
   useEffect(() => {
-    void loadAchievements();
-  }, [loadAchievements]);
+    if (enabled) void loadAchievements();
+  }, [enabled, loadAchievements]);
 
   // Refetch whenever the cached window doesn't match the selected period
   // (covers the initial load, period switches and demo-mode force reloads).
   useEffect(() => {
-    if (statsRange !== range) void loadRange(from, to);
-  }, [statsRange, range, from, to, loadRange]);
+    if (enabled && statsRange !== range) void loadRange(from, to);
+  }, [enabled, statsRange, range, from, to, loadRange]);
 
   const data = useMemo<RecapData | null>(() => {
     if (!stats || statsRange !== range) return null;
