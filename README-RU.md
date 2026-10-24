@@ -106,7 +106,7 @@ SQLite на вашем компьютере. Без аккаунтов и тел
 ### Запуск в режиме разработки
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/AlexWT1/game-sapce.git
 cd game-space
 npm install
 npm run tauri dev
