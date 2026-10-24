@@ -105,7 +105,7 @@ with animated counters and fun facts:
 ### Run in development mode
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/AlexWT1/game-sapce.git
 cd game-space
 npm install
 npm run tauri dev
