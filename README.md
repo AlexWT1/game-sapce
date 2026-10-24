@@ -144,19 +144,6 @@ Installers are written to `src-tauri/target/release/bundle/`.
 └── scripts/              # dev utilities
 ```
 
-## 🧪 Dev utilities
-
-`scripts/capture-screenshots.mjs` walks every page of a running dev build and saves PNG
-screenshots to `docs/screenshots/` over the WebView2 DevTools protocol — handy for keeping the
-README up to date:
-
-```bash
-# start the app with a remote-debugging port first, then:
-node scripts/capture-screenshots.mjs 9222 docs/screenshots
-```
-
-
-
 ---
 
 <div align="center">
