@@ -297,6 +297,10 @@ const RU = {
   "onboarding.welcome": "Добро пожаловать в Game Space",
   "onboarding.welcomeHint":
     "Единое пространство для всех игр, твоего времени, достижений и статистики.",
+  "onboarding.nameTitle": "Как к вам обращаться?",
+  "onboarding.nameHint":
+    "Введите ник — он сохранится в базе данных и появится в шапке приложения.",
+  "onboarding.namePlaceholder": "Ваш ник",
   "onboarding.addFirst": "Добавить первую игру",
   "onboarding.addFirstHint":
     "Выбери executable-файл игры — остальное Game Space подтянет сам. Можно пропустить и добавить позже.",
@@ -306,6 +310,14 @@ const RU = {
   "onboarding.back": "Назад",
   "onboarding.start": "Начать",
   "onboarding.step": "Шаг",
+
+  "profile.approachTitle": "Как к вам обращаться?",
+  "profile.approachHint": "Ник сохраняется в базе данных и отображается в приложении.",
+  "profile.nameLabel": "Ник",
+  "profile.namePlaceholder": "Например, Lusfan",
+  "profile.nameErrorEmpty": "Введите ник",
+  "profile.nameErrorTooLong": "Не больше 32 символов",
+  "profile.nameErrorSave": "Не удалось сохранить ник",
 
   "command.placeholder": "Введи команду или название игры...",
   "command.games": "Игры",
@@ -646,6 +658,10 @@ const EN: Dict = {
   "onboarding.welcome": "Welcome to Game Space",
   "onboarding.welcomeHint":
     "One place for all your games, time, achievements and stats.",
+  "onboarding.nameTitle": "What should we call you?",
+  "onboarding.nameHint":
+    "Type a nickname — it is saved to your database and shown in the app top bar.",
+  "onboarding.namePlaceholder": "Your nickname",
   "onboarding.addFirst": "Add your first game",
   "onboarding.addFirstHint":
     "Pick the game's executable file — Game Space will handle the rest. You can skip and add games later.",
@@ -655,6 +671,14 @@ const EN: Dict = {
   "onboarding.back": "Back",
   "onboarding.start": "Start",
   "onboarding.step": "Step",
+
+  "profile.approachTitle": "What should we call you?",
+  "profile.approachHint": "The nickname is stored in the database and shown across the app.",
+  "profile.nameLabel": "Nickname",
+  "profile.namePlaceholder": "e.g. Lusfan",
+  "profile.nameErrorEmpty": "Type a nickname",
+  "profile.nameErrorTooLong": "Max 32 characters",
+  "profile.nameErrorSave": "Failed to save nickname",
 
   "command.placeholder": "Type a command or game title...",
   "command.games": "Games",

@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { useT } from "@/hooks/useT";
 import { useUiStore } from "@/stores/uiStore";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { usePlayerDisplayName } from "@/stores/playerStore";
 import { WindowControls } from "@/components/layout/WindowControls";
 import { cx, relativeTime } from "@/utils/format";
 
@@ -24,6 +25,7 @@ export function Topbar() {
   const setNotifOpen = useUiStore((s) => s.setNotificationsOpen);
   const notifications = useUiStore((s) => s.recentNotifications);
   const locale = useSettingsStore((s) => s.locale);
+  const playerName = usePlayerDisplayName();
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,7 +120,9 @@ export function Topbar() {
           <span className="h-7 w-7 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#22d3ee] grid place-items-center">
             <User className="h-3.5 w-3.5 text-white" />
           </span>
-          <span className="text-[13px] font-medium text-ink hidden md:inline">NightPlayer</span>
+          <span className="text-[13px] font-medium text-ink hidden md:inline">
+            {playerName}
+          </span>
         </button>
 
         <div className="w-px h-6 bg-white/10 mx-1" />

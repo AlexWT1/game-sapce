@@ -3,10 +3,17 @@ use std::collections::HashMap;
 use rusqlite::{Connection, OptionalExtension};
 use tauri::State;
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::AppState;
 
 pub type SettingsMap = HashMap<String, serde_json::Value>;
+
+/// Key under which the player nickname (how the app addresses the user)
+/// is stored in the `settings` table.
+const PLAYER_NAME_KEY: &str = "player_name";
+
+/// Hard cap for the nickname so it fits UI slots (topbar, greetings).
+const PLAYER_NAME_MAX_LEN: usize = 32;
 
 pub fn demo_disabled(conn: &Connection) -> Result<bool, rusqlite::Error> {
     let mode: Option<String> = conn
@@ -96,4 +103,42 @@ pub fn update_settings(
 #[tauri::command]
 pub fn get_setting(state: State<'_, AppState>, key: String) -> AppResult<Option<String>> {
     state.db.with(|conn| read_setting(conn, &key).map_err(Into::into))
+}
+
+/// Nickname saved in the database, or `null` when the user has not picked
+/// one yet (first launch / fresh database).
+#[tauri::command]
+pub fn get_player_name(state: State<'_, AppState>) -> AppResult<Option<String>> {
+    state
+        .db
+        .with(|conn| read_setting(conn, PLAYER_NAME_KEY).map_err(Into::into))
+}
+
+/// Persists the player nickname in the database (upsert into `settings`).
+/// Returns the stored (trimmed and length-checked) value.
+///
+/// The client displays it on the spot — no extra `get` round-trip is needed.
+#[tauri::command]
+pub fn set_player_name(state: State<'_, AppState>, name: String) -> AppResult<String> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err(AppError::Other("player name must not be empty".into()));
+    }
+    if name.chars().count() > PLAYER_NAME_MAX_LEN {
+        return Err(AppError::Other(format!(
+            "player name is too long (max {PLAYER_NAME_MAX_LEN} characters)"
+        )));
+    }
+
+    let stored = name.clone();
+    state.db.with(|conn| {
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![PLAYER_NAME_KEY, stored],
+        )?;
+        Ok(())
+    })?;
+    log::info!("Player name saved: \"{name}\"");
+    Ok(name)
 }

@@ -134,6 +134,8 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_setting,
+            commands::settings::get_player_name,
+            commands::settings::set_player_name,
             commands::system::window_minimize,
             commands::system::window_toggle_maximize,
             commands::system::window_close,

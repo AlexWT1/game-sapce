@@ -18,6 +18,8 @@ import { useSettingsStore, applyAccent, applyVisualPreferences } from "@/stores/
 import { api } from "@/services/api";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useGamesStore } from "@/stores/gamesStore";
+import { usePlayerStore } from "@/stores/playerStore";
+import { PlayerNameModal } from "@/features/profile/PlayerNameModal";
 import { useStatisticsStore } from "@/stores/statisticsStore";
 import { useAchievementsStore } from "@/stores/achievementsStore";
 import { cx } from "@/utils/format";
@@ -63,6 +65,7 @@ export function AppLayout() {
     void useSessionStore.getState().refresh();
     void useStatisticsStore.getState().load();
     void useAchievementsStore.getState().load();
+    void usePlayerStore.getState().load();
   }, []);
 
   // Live playtime ticks (only when games are running).
@@ -180,6 +183,7 @@ export function AppLayout() {
       <MissingExecutableDialog />
       <ConfirmDialog />
       <ToastHost />
+      <PlayerNameModal />
       <RecapAutoShow />
 
       {dragOver && (

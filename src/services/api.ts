@@ -82,6 +82,10 @@ export const api = {
     call<SettingsMap>("update_settings", { settings }),
   getSetting: (key: string) => call<string | null>("get_setting", { key }),
 
+  // player profile
+  getPlayerName: () => call<string | null>("get_player_name"),
+  setPlayerName: (name: string) => call<string>("set_player_name", { name }),
+
   // store integrations
   getStoreAccount: () => call<StoreAccount | null>("get_store_account"),
   linkSteamAccount: (apiKey: string, profileUrl: string) =>
