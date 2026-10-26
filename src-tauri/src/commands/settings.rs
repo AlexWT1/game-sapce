@@ -4,6 +4,7 @@ use rusqlite::{Connection, OptionalExtension};
 use tauri::State;
 
 use crate::error::{AppError, AppResult};
+use crate::services::igdb::{CLIENT_ID_KEY, CLIENT_SECRET_KEY, TOKEN_EXPIRY_KEY, TOKEN_KEY};
 use crate::AppState;
 
 pub type SettingsMap = HashMap<String, serde_json::Value>;
@@ -83,6 +84,14 @@ pub fn update_settings(
                  ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 rusqlite::params![key, raw],
             )?;
+        }
+        // IGDB credentials changed → drop the cached access token so the
+        // next lookup mints a fresh one for the new keys (a stale token is
+        // issued for the old Client-ID and makes IGDB answer 401).
+        if settings.keys().any(|k| k == CLIENT_ID_KEY || k == CLIENT_SECRET_KEY) {
+            for key in [TOKEN_KEY, TOKEN_EXPIRY_KEY] {
+                conn.execute("DELETE FROM settings WHERE key = ?1", rusqlite::params![key])?;
+            }
         }
         if settings.contains_key("demo_mode") {
             let new_mode = settings.get("demo_mode").and_then(|v| v.as_str()).unwrap_or("on");
