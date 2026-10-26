@@ -44,7 +44,10 @@ pub fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         launch_count: row.get(22)?,
         use_launcher: row.get::<_, i64>(23)? != 0,
         launcher_path: row.get(24)?,
-        launcher_args: row.get(25).ok().flatten(),
+        // `launcher_args` is a NOT NULL column; an empty value means "no args".
+        launcher_args: row
+            .get::<_, Option<String>>(25)?
+            .filter(|a| !a.is_empty()),
     })
 }
 
@@ -176,7 +179,8 @@ pub fn create_game(
                 now,
                 use_launcher as i64,
                 launcher,
-                launcher_args,
+                // The column is NOT NULL — an empty string means "no args".
+                launcher_args.as_deref().unwrap_or(""),
             ],
         )?;
         let id = conn.last_insert_rowid();
@@ -315,7 +319,8 @@ pub fn update_game(
                 now,
                 game.use_launcher as i64,
                 game.launcher_path,
-                game.launcher_args,
+                // The column is NOT NULL — an empty string means "no args".
+                game.launcher_args.as_deref().unwrap_or(""),
                 id
             ],
         )?;
@@ -736,6 +741,8 @@ mod tests {
 
         // Installed — path refreshed when Steam reports a different one.
         let (installed, fresh) = verify_target(
+            false,
+            None,
             None,
             Some(r"E:\old\CS2"),
             Some(730),
@@ -747,6 +754,8 @@ mod tests {
 
         // Installed with an up-to-date path — no refresh needed.
         let (installed, fresh) = verify_target(
+            false,
+            None,
             None,
             Some(r"D:\Steam\steamapps\common\CS2"),
             Some(730),
@@ -757,13 +766,14 @@ mod tests {
         assert!(fresh.is_none());
 
         // Uninstalled — flagged but the row and its path stay untouched.
-        let (installed, fresh) = verify_target(None, Some(r"E:\old\CS2"), Some(440), Some(&apps))
-            .expect("verifiable");
+        let (installed, fresh) =
+            verify_target(false, None, None, Some(r"E:\old\CS2"), Some(440), Some(&apps))
+                .expect("verifiable");
         assert!(!installed);
         assert!(fresh.is_none());
 
         // Steam itself is missing — nothing to verify against, keep the flag.
-        assert!(verify_target(None, Some(r"E:\old\CS2"), Some(730), None).is_none());
+        assert!(verify_target(false, None, None, Some(r"E:\old\CS2"), Some(730), None).is_none());
     }
 
     #[test]
@@ -780,24 +790,53 @@ mod tests {
         let missing = dir.join("gone.exe").to_string_lossy().to_string();
 
         let (installed, fresh) =
-            verify_target(Some(&exe_str), Some(&dir_str), None, None).expect("verifiable");
+            verify_target(false, None, Some(&exe_str), Some(&dir_str), None, None)
+                .expect("verifiable");
         assert!(installed);
         assert!(fresh.is_none());
 
         let (installed, _) =
-            verify_target(Some(&missing), Some(&dir_str), None, None).expect("verifiable");
+            verify_target(false, None, Some(&missing), Some(&dir_str), None, None)
+                .expect("verifiable");
         assert!(!installed);
 
         // No executable — the install directory is the fallback check.
-        let (installed, _) = verify_target(None, Some(&dir_str), None, None).expect("verifiable");
+        let (installed, _) =
+            verify_target(false, None, None, Some(&dir_str), None, None).expect("verifiable");
         assert!(installed);
-        let (installed, _) = verify_target(None, Some(&missing), None, None).expect("verifiable");
+        let (installed, _) =
+            verify_target(false, None, None, Some(&missing), None, None).expect("verifiable");
         assert!(!installed);
 
         // Nothing to check against.
-        assert!(verify_target(None, None, None, None).is_none());
-        assert!(verify_target(Some(""), Some("  "), None, None).is_none());
+        assert!(verify_target(false, None, None, None, None, None).is_none());
+        assert!(verify_target(false, None, Some(""), Some("  "), None, None).is_none());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn launcher_args_empty_stays_within_not_null_column() {
+        let conn = memory_db();
+
+        // Same binds the create/update commands use for "no launcher args":
+        // an empty string must be stored instead of an explicit NULL.
+        let no_args: Option<String> = None;
+        conn.execute(
+            "INSERT INTO games (title, created_at, updated_at, launcher_args)
+             VALUES (?1, 't', 't', ?2)",
+            rusqlite::params!["Soulstone", no_args.as_deref().unwrap_or("")],
+        )
+        .expect("empty launcher_args must not violate NOT NULL");
+
+        let id: i64 = conn.last_insert_rowid();
+        let stored: String = conn
+            .query_row("SELECT launcher_args FROM games WHERE id = ?1", [id], |r| r.get(0))
+            .expect("stored args");
+        assert_eq!(stored, "");
+
+        // The model keeps the "no args" semantics as None.
+        let game = get_game_conn(&conn, id).expect("game");
+        assert_eq!(game.launcher_args, None);
     }
 }
