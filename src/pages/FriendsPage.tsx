@@ -123,7 +123,7 @@ function FriendRow({
         <p className="text-[12.5px] text-muted truncate mt-0.5">
           {friend.online
             ? friend.currentGame
-              ? `Играет в ${friend.currentGame}`
+              ? `${t("friends.playing")} ${friend.currentGame}`
               : t("time.online")
             : `${t("friends.lastSeen")} ${relativeTime(friend.lastSeen, locale)}`}
         </p>

@@ -80,7 +80,7 @@ export function GameDetailsPage() {
   if (!game) {
     return (
       <div className="p-8">
-        <EmptyState title="Игра не найдена" action={<Link to="/library" className="text-[var(--color-accent)]">← Библиотека</Link>} />
+        <EmptyState title={t("game.notFound")} action={<Link to="/library" className="text-[var(--color-accent)]">← {t("nav.library")}</Link>} />
       </div>
     );
   }

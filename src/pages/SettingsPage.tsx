@@ -77,7 +77,7 @@ export function SettingsPage() {
       const path = await api.exportData();
       pushToast({ kind: "success", title: t("toast.exportDone"), body: path });
     } catch (e) {
-      if (!String(e).includes("отменена")) {
+      if (!String(e).includes("отменена") && !String(e).includes("cancelled")) {
         pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
       }
     }
@@ -96,7 +96,7 @@ export function SettingsPage() {
       await useGamesStore.getState().load(true);
       await useStatisticsStore.getState().load(true);
     } catch (e) {
-      if (!String(e).includes("отменена")) {
+      if (!String(e).includes("отменена") && !String(e).includes("cancelled")) {
         pushToast({ kind: "error", title: t("toast.error"), body: String(e) });
       }
     }
@@ -134,10 +134,16 @@ export function SettingsPage() {
             <Select
               options={LOCALES.map((l) => ({ value: l.value, label: l.label }))}
               value={local.locale}
-              onChange={(e) => {
+              onChange={async (e) => {
                 const locale = e.target.value as Locale;
                 local.set({ locale });
-                void persistBackend({ language: locale });
+                await persistBackend({ language: locale, locale });
+                const { useGamesStore } = await import("@/stores/gamesStore");
+                const { useStatisticsStore } = await import("@/stores/statisticsStore");
+                const { useAchievementsStore } = await import("@/stores/achievementsStore");
+                await useGamesStore.getState().load(true);
+                await useStatisticsStore.getState().load(true);
+                await useAchievementsStore.getState().load(null, true);
               }}
               className="w-40"
             />

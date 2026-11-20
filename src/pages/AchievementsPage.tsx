@@ -148,7 +148,7 @@ export function AchievementsPage() {
                   {a.unlocked ? (
                     <p className="text-[11.5px] text-emerald-400/90 mt-1.5 flex items-center gap-1.5">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      Получено
+                      {t("achievements.unlocked")}
                       {a.gameTitle && (
                         <span className="text-dim">
                           ·{" "}

@@ -88,6 +88,24 @@ pub fn update_settings(
                 log::warn!("seed after demo_mode update failed: {e}");
             }
         }
+        if settings.contains_key("locale") || settings.contains_key("language") {
+            let demo_on = read_setting(conn, "demo_mode")?.as_deref() != Some("off");
+            if demo_on {
+                if let Err(e) = clear_demo_data(conn) {
+                    log::warn!("clear demo data for locale change failed: {e}");
+                }
+                conn.execute("DELETE FROM settings WHERE key = 'demo_seeded'", [])?;
+                if let Err(e) = crate::game::seed::seed_if_empty(conn) {
+                    log::warn!("seed after locale change failed: {e}");
+                }
+            }
+            if let Err(e) = crate::game::achievements::ensure_app_achievements(conn) {
+                log::warn!("update app achievements for locale change failed: {e}");
+            }
+            if let Err(e) = crate::game::achievements::ensure_all_game_achievements(conn) {
+                log::warn!("update game achievements for locale change failed: {e}");
+            }
+        }
         Ok(())
     })?;
     get_settings(state)

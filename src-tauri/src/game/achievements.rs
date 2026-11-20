@@ -8,7 +8,9 @@ use crate::AppState;
 struct AppRule {
     key: &'static str,
     title: &'static str,
+    title_en: &'static str,
     description: &'static str,
+    description_en: &'static str,
     rarity: &'static str,
     /// Returns current progress (can exceed target).
     progress: fn(&Connection) -> Result<(i64, i64), rusqlite::Error>,
@@ -17,8 +19,10 @@ struct AppRule {
 const APP_RULES: &[AppRule] = &[
     AppRule {
         key: "first_launch",
-        title: "First Launch",
+        title: "Первый запуск",
+        title_en: "First Launch",
         description: "Запусти первую игру",
+        description_en: "Launch your first game",
         rarity: "Common",
         progress: |conn| {
             conn.query_row("SELECT COUNT(*) FROM games WHERE launch_count > 0", [], |r| {
@@ -29,8 +33,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "collector",
-        title: "Collector",
+        title: "Коллекционер",
+        title_en: "Collector",
         description: "Добавь 10 игр в библиотеку",
+        description_en: "Add 10 games to library",
         rarity: "Rare",
         progress: |conn| {
             conn.query_row("SELECT COUNT(*) FROM games", [], |r| r.get::<_, i64>(0))
@@ -39,8 +45,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "dedicated_player",
-        title: "Dedicated Player",
+        title: "Преданный игрок",
+        title_en: "Dedicated Player",
         description: "Проведи 50 часов в играх",
+        description_en: "Spend 50 hours in games",
         rarity: "Epic",
         progress: |conn| {
             conn.query_row(
@@ -53,8 +61,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "night_owl",
-        title: "Night Owl",
+        title: "Полуночник",
+        title_en: "Night Owl",
         description: "Поиграй после полуночи",
+        description_en: "Play after midnight",
         rarity: "Rare",
         progress: |conn| {
             conn.query_row(
@@ -67,8 +77,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "marathon",
-        title: "Marathon",
+        title: "Марафон",
+        title_en: "Marathon",
         description: "Проведи в игре больше 5 часов за сессию",
+        description_en: "Play for more than 5 hours in a single session",
         rarity: "Epic",
         progress: |conn| {
             conn.query_row(
@@ -81,8 +93,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "explorer",
-        title: "Explorer",
+        title: "Исследователь",
+        title_en: "Explorer",
         description: "Добавь игры 5 разных жанров",
+        description_en: "Add games of 5 different genres",
         rarity: "Rare",
         progress: |conn| {
             conn.query_row(
@@ -95,8 +109,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "century",
-        title: "Centurion",
+        title: "Центурион",
+        title_en: "Centurion",
         description: "Заверши 100 игровых сессий",
+        description_en: "Complete 100 gaming sessions",
         rarity: "Legendary",
         progress: |conn| {
             conn.query_row(
@@ -109,8 +125,10 @@ const APP_RULES: &[AppRule] = &[
     },
     AppRule {
         key: "curator",
-        title: "Curator",
+        title: "Куратор",
+        title_en: "Curator",
         description: "Отметь 5 игр избранными",
+        description_en: "Mark 5 games as favorites",
         rarity: "Common",
         progress: |conn| {
             conn.query_row(
@@ -125,7 +143,15 @@ const APP_RULES: &[AppRule] = &[
 
 /// Inserts any missing built-in app achievements.
 pub fn ensure_app_achievements(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let locale_en = crate::commands::settings::read_setting(conn, "locale")
+        .unwrap_or(None)
+        .as_deref() == Some("en")
+        || crate::commands::settings::read_setting(conn, "language")
+            .unwrap_or(None)
+            .as_deref() == Some("en");
     for rule in APP_RULES {
+        let title = if locale_en { rule.title_en } else { rule.title };
+        let desc = if locale_en { rule.description_en } else { rule.description };
         let exists = conn
             .query_row(
                 "SELECT 1 FROM achievements WHERE key = ?1",
@@ -138,7 +164,12 @@ pub fn ensure_app_achievements(conn: &Connection) -> Result<(), rusqlite::Error>
             conn.execute(
                 "INSERT INTO achievements (game_id, title, description, rarity, scope, key, progress_target)
                  VALUES (NULL, ?1, ?2, ?3, 'app', ?4, 1)",
-                rusqlite::params![rule.title, rule.description, rule.rarity, rule.key],
+                rusqlite::params![title, desc, rule.rarity, rule.key],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE achievements SET title = ?1, description = ?2 WHERE key = ?3 AND scope = 'app'",
+                rusqlite::params![title, desc, rule.key],
             )?;
         }
     }
@@ -281,11 +312,37 @@ pub fn map_achievement(row: &rusqlite::Row<'_>) -> rusqlite::Result<Achievement>
     })
 }
 
+struct HourAchievement {
+    key: &'static str,
+    title_ru: &'static str,
+    title_en: &'static str,
+    rarity: &'static str,
+    hours: i64,
+}
+
 /// Per-game playtime achievement ladder (hours, in-game title, rarity).
-const GAME_HOUR_ACHIEVEMENTS: &[(&str, &str, &str, i64)] = &[
-    ("playtime_10h", "Разогрев", "Common", 10),
-    ("playtime_100h", "Втянулся", "Rare", 100),
-    ("playtime_1000h", "Живая легенда", "Legendary", 1000),
+const GAME_HOUR_ACHIEVEMENTS: &[HourAchievement] = &[
+    HourAchievement {
+        key: "playtime_10h",
+        title_ru: "Разогрев",
+        title_en: "Warming Up",
+        rarity: "Common",
+        hours: 10,
+    },
+    HourAchievement {
+        key: "playtime_100h",
+        title_ru: "Втянулся",
+        title_en: "Hooked",
+        rarity: "Rare",
+        hours: 100,
+    },
+    HourAchievement {
+        key: "playtime_1000h",
+        title_ru: "Живая легенда",
+        title_en: "Living Legend",
+        rarity: "Legendary",
+        hours: 1000,
+    },
 ];
 
 /// Creates the standard per-game achievement set for a newly added game:
@@ -295,18 +352,44 @@ pub fn ensure_game_achievements(
     game_id: i64,
     title: &str,
 ) -> Result<(), rusqlite::Error> {
+    let locale_en = crate::commands::settings::read_setting(conn, "locale")
+        .unwrap_or(None)
+        .as_deref() == Some("en")
+        || crate::commands::settings::read_setting(conn, "language")
+            .unwrap_or(None)
+            .as_deref() == Some("en");
+    let first_launch_title = if locale_en { "First Launch" } else { "Первый запуск" };
+    let first_launch_desc = if locale_en {
+        format!("Launch \"{}\"", title)
+    } else {
+        format!("Запусти «{}»", title)
+    };
     conn.execute(
         "INSERT INTO achievements (game_id, title, description, rarity, scope, key, progress_target)
-         SELECT ?1, 'Первый запуск', 'Запусти «' || ?2 || '»', 'Common', 'game', 'first_launch_game', 1
+         SELECT ?1, ?2, ?3, 'Common', 'game', 'first_launch_game', 1
          WHERE NOT EXISTS (SELECT 1 FROM achievements WHERE game_id = ?1 AND key = 'first_launch_game')",
-        rusqlite::params![game_id, title],
+        rusqlite::params![game_id, first_launch_title, first_launch_desc],
     )?;
-    for (key, ach_title, rarity, hours) in GAME_HOUR_ACHIEVEMENTS {
+    conn.execute(
+        "UPDATE achievements SET title = ?2, description = ?3 WHERE game_id = ?1 AND key = 'first_launch_game'",
+        rusqlite::params![game_id, first_launch_title, first_launch_desc],
+    )?;
+    for ha in GAME_HOUR_ACHIEVEMENTS {
+        let ach_title = if locale_en { ha.title_en } else { ha.title_ru };
+        let ach_desc = if locale_en {
+            format!("Spend {} hours playing \"{}\"", ha.hours, title)
+        } else {
+            format!("Проведи {} часов в игре «{}»", ha.hours, title)
+        };
         conn.execute(
             "INSERT INTO achievements (game_id, title, description, rarity, scope, key, progress_target)
-             SELECT ?1, ?2, 'Проведи ' || ?3 || ' часов в игре «' || ?4 || '»', ?5, 'game', ?6, ?7
-             WHERE NOT EXISTS (SELECT 1 FROM achievements WHERE game_id = ?1 AND key = ?6)",
-            rusqlite::params![game_id, ach_title, hours, title, rarity, key, hours],
+             SELECT ?1, ?2, ?3, ?4, 'game', ?5, ?6
+             WHERE NOT EXISTS (SELECT 1 FROM achievements WHERE game_id = ?1 AND key = ?5)",
+            rusqlite::params![game_id, ach_title, ach_desc, ha.rarity, ha.key, ha.hours],
+        )?;
+        conn.execute(
+            "UPDATE achievements SET title = ?2, description = ?3 WHERE game_id = ?1 AND key = ?4",
+            rusqlite::params![game_id, ach_title, ach_desc, ha.key],
         )?;
     }
     Ok(())
@@ -483,5 +566,41 @@ mod tests {
 
         let unlocked = refresh_and_unlock(&conn).expect("unlock");
         assert!(unlocked.is_empty(), "nothing to unlock without stats");
+    }
+
+    #[test]
+    fn achievements_respect_locale_and_update_on_change() {
+        let conn = memory_db();
+        let id = insert_game(&conn, "Doom");
+
+        // 1. Russian default
+        ensure_app_achievements(&conn).expect("ensure app");
+        ensure_game_achievements(&conn, id, "Doom").expect("ensure game");
+
+        let app_title: String = conn
+            .query_row("SELECT title FROM achievements WHERE key = 'first_launch'", [], |r| r.get(0))
+            .expect("title");
+        assert_eq!(app_title, "Первый запуск");
+
+        let game_desc: String = conn
+            .query_row("SELECT description FROM achievements WHERE game_id = ?1 AND key = 'first_launch_game'", [id], |r| r.get(0))
+            .expect("desc");
+        assert_eq!(game_desc, "Запусти «Doom»");
+
+        // 2. Change locale to English
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('locale', 'en')", [])
+            .expect("set locale");
+        ensure_app_achievements(&conn).expect("ensure app en");
+        ensure_game_achievements(&conn, id, "Doom").expect("ensure game en");
+
+        let app_title_en: String = conn
+            .query_row("SELECT title FROM achievements WHERE key = 'first_launch'", [], |r| r.get(0))
+            .expect("title en");
+        assert_eq!(app_title_en, "First Launch");
+
+        let game_desc_en: String = conn
+            .query_row("SELECT description FROM achievements WHERE game_id = ?1 AND key = 'first_launch_game'", [id], |r| r.get(0))
+            .expect("desc en");
+        assert_eq!(game_desc_en, "Launch \"Doom\"");
     }
 }

@@ -161,9 +161,18 @@ pub fn build_statistics(conn: &Connection) -> AppResult<Statistics> {
         rows.collect::<Result<Vec<_>, _>>()?
     };
 
+    let other_genre = if crate::commands::settings::read_setting(conn, "locale")
+        .unwrap_or(None)
+        .as_deref() == Some("en")
+    {
+        "Other"
+    } else {
+        "Другое"
+    };
+
     let by_genre = {
         let mut stmt = conn.prepare(&format!(
-            "SELECT CASE WHEN genre = '' THEN 'Другое' ELSE genre END AS g, COUNT(*) as c
+            "SELECT CASE WHEN genre = '' THEN '{other_genre}' ELSE genre END AS g, COUNT(*) as c
              FROM games{gwhere} GROUP BY g ORDER BY c DESC"
         ))?;
         let rows = stmt.query_map([], |r| {
@@ -309,9 +318,18 @@ pub fn build_range_statistics(conn: &Connection, from: &str, to: &str) -> AppRes
         rows.collect::<Result<Vec<_>, _>>()?
     };
 
+    let other_genre = if crate::commands::settings::read_setting(conn, "locale")
+        .unwrap_or(None)
+        .as_deref() == Some("en")
+    {
+        "Other"
+    } else {
+        "Другое"
+    };
+
     let by_genre = {
         let mut stmt = conn.prepare(&format!(
-            "SELECT CASE WHEN g.genre = '' THEN 'Другое' ELSE g.genre END AS g, COUNT(DISTINCT gs.game_id) AS c{join}
+            "SELECT CASE WHEN g.genre = '' THEN '{other_genre}' ELSE g.genre END AS g, COUNT(DISTINCT gs.game_id) AS c{join}
              GROUP BY g
              ORDER BY c DESC"
         ))?;

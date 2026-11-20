@@ -5,8 +5,10 @@ use crate::services::placeholder::placeholder_cover;
 struct SeedGame {
     title: &'static str,
     description: &'static str,
+    description_en: &'static str,
     developer: &'static str,
     genre: &'static str,
+    genre_en: &'static str,
     year: i64,
     hours: i64,
     sessions: i64,
@@ -18,8 +20,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "The Witcher 3: Wild Hunt",
         description: "Эпическое приключение в открытом мире, полное захватывающих историй и незабываемых персонажей.",
+        description_en: "An epic open-world adventure full of captivating stories and unforgettable characters.",
         developer: "CD Projekt RED",
         genre: "RPG",
+        genre_en: "RPG",
         year: 2015,
         hours: 248,
         sessions: 42,
@@ -29,8 +33,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Cyberpunk 2077",
         description: "Открытый мир Найт-Сити — мегаполиса будущего, где власть, роскошь и кибернетика.",
+        description_en: "The open world of Night City — a megacity of the future where power, luxury, and cybernetics rule.",
         developer: "CD Projekt RED",
         genre: "RPG",
+        genre_en: "RPG",
         year: 2020,
         hours: 96,
         sessions: 21,
@@ -40,8 +46,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Hogwarts Legacy",
         description: "Погрузись в мир магии XIX века и стань волшебником Хогвартса.",
+        description_en: "Immerse yourself in the wizarding world of the 19th century and become a Hogwarts student.",
         developer: "Avalanche Software",
         genre: "Приключения",
+        genre_en: "Adventure",
         year: 2023,
         hours: 64,
         sessions: 15,
@@ -51,8 +59,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Red Dead Redemption 2",
         description: "Эпическая история Артура Моргана и банды Ван дер Линде на Диком Западе.",
+        description_en: "The epic story of Arthur Morgan and the Van der Linde gang in the Wild West.",
         developer: "Rockstar Games",
         genre: "Экшен",
+        genre_en: "Action",
         year: 2018,
         hours: 132,
         sessions: 30,
@@ -62,8 +72,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Elden Ring",
         description: "Тёмное фэнтези от FromSoftware в открытом мире Благословенных Земель.",
+        description_en: "Dark fantasy by FromSoftware in the open world of the Lands Between.",
         developer: "FromSoftware",
         genre: "Экшен",
+        genre_en: "Action",
         year: 2022,
         hours: 88,
         sessions: 27,
@@ -73,8 +85,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Baldur's Gate 3",
         description: "Тактическая RPG по миру Dungeons & Dragons с глубокими выборами.",
+        description_en: "A tactical RPG set in the Dungeons & Dragons universe with deep choices.",
         developer: "Larian Studios",
         genre: "RPG",
+        genre_en: "RPG",
         year: 2023,
         hours: 110,
         sessions: 24,
@@ -84,8 +98,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Starfield",
         description: "Космическое исследование от Bethesda — сотни планет и свобода выбора.",
+        description_en: "Space exploration by Bethesda — hundreds of planets and freedom of choice.",
         developer: "Bethesda Game Studios",
         genre: "Приключения",
+        genre_en: "Adventure",
         year: 2023,
         hours: 54,
         sessions: 12,
@@ -95,8 +111,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "God of War",
         description: "Кратос и Атрей в путешествии по миру скандинавской мифологии.",
+        description_en: "Kratos and Atreus journey through the world of Norse mythology.",
         developer: "Santa Monica Studio",
         genre: "Экшен",
+        genre_en: "Action",
         year: 2018,
         hours: 42,
         sessions: 11,
@@ -106,8 +124,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "The Last of Us Part I",
         description: "История выживания Джоэл и Элли в мире, погубленном эпидемией.",
+        description_en: "The survival story of Joel and Ellie in a world ravaged by a pandemic.",
         developer: "Naughty Dog",
         genre: "Приключения",
+        genre_en: "Adventure",
         year: 2022,
         hours: 30,
         sessions: 9,
@@ -117,8 +137,10 @@ const SEED: &[SeedGame] = &[
     SeedGame {
         title: "Assassin's Creed Valhalla",
         description: "Стань эйнхерри и возглави викингов в набегах на Англию.",
+        description_en: "Become an einherjar and lead the Vikings in raids on England.",
         developer: "Ubisoft Montreal",
         genre: "Экшен",
+        genre_en: "Action",
         year: 2020,
         hours: 74,
         sessions: 18,
@@ -127,11 +149,43 @@ const SEED: &[SeedGame] = &[
     },
 ];
 
-const GAME_ACHIEVEMENTS: &[(&str, &str, &str)] = &[
-    ("Начало пути", "Заверши первую сессию", "Common"),
-    ("Исследователь", "Проведи 20 часов в игре", "Rare"),
-    ("Преданный", "Сыграй 10 сессий", "Epic"),
-    ("Марафонец", "Одна сессия дольше 3 часов", "Legendary"),
+struct SeedAchievement {
+    title_ru: &'static str,
+    title_en: &'static str,
+    desc_ru: &'static str,
+    desc_en: &'static str,
+    rarity: &'static str,
+}
+
+const GAME_ACHIEVEMENTS: &[SeedAchievement] = &[
+    SeedAchievement {
+        title_ru: "Начало пути",
+        title_en: "First Steps",
+        desc_ru: "Заверши первую сессию",
+        desc_en: "Complete your first session",
+        rarity: "Common",
+    },
+    SeedAchievement {
+        title_ru: "Исследователь",
+        title_en: "Explorer",
+        desc_ru: "Проведи 20 часов в игре",
+        desc_en: "Spend 20 hours in the game",
+        rarity: "Rare",
+    },
+    SeedAchievement {
+        title_ru: "Преданный",
+        title_en: "Devoted",
+        desc_ru: "Сыграй 10 сессий",
+        desc_en: "Play 10 sessions",
+        rarity: "Epic",
+    },
+    SeedAchievement {
+        title_ru: "Марафонец",
+        title_en: "Marathon Runner",
+        desc_ru: "Одна сессия дольше 3 часов",
+        desc_en: "A single session over 3 hours",
+        rarity: "Legendary",
+    },
 ];
 
 fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>, rusqlite::Error> {
@@ -208,11 +262,15 @@ pub fn seed_if_empty(conn: &Connection) -> Result<(), rusqlite::Error> {
     }
 
     log::info!("Seeding demo library");
+    let locale_en = get_setting(conn, "locale")?.as_deref() == Some("en")
+        || get_setting(conn, "language")?.as_deref() == Some("en");
     let now = chrono::Utc::now();
     for (i, g) in SEED.iter().enumerate() {
         let created = (now - chrono::Duration::days(120 - i as i64)).to_rfc3339();
         let last_played = (now - chrono::Duration::days(i as i64 % 14)).to_rfc3339();
         let cover = placeholder_cover(g.title);
+        let desc = if locale_en { g.description_en } else { g.description };
+        let genre = if locale_en { g.genre_en } else { g.genre };
         conn.execute(
             "INSERT INTO games (title, description, executable_path, cover_path, developer, publisher,
                 genre, release_year, platform, source, is_installed, is_favorite, is_hidden,
@@ -221,10 +279,10 @@ pub fn seed_if_empty(conn: &Connection) -> Result<(), rusqlite::Error> {
                 ?8, ?8, ?9, ?10, ?11)",
             rusqlite::params![
                 g.title,
-                g.description,
+                desc,
                 cover,
                 g.developer,
-                g.genre,
+                genre,
                 g.year,
                 g.favorite as i64,
                 created,
@@ -244,7 +302,9 @@ pub fn seed_if_empty(conn: &Connection) -> Result<(), rusqlite::Error> {
             )?;
         }
 
-        for (title, desc, rarity) in GAME_ACHIEVEMENTS {
+        for ach in GAME_ACHIEVEMENTS {
+            let ach_title = if locale_en { ach.title_en } else { ach.title_ru };
+            let ach_desc = if locale_en { ach.desc_en } else { ach.desc_ru };
             let unlocked = i < 3;
             let unlocked_at = unlocked.then(|| last_played.clone());
             conn.execute(
@@ -253,13 +313,13 @@ pub fn seed_if_empty(conn: &Connection) -> Result<(), rusqlite::Error> {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'game')",
                 rusqlite::params![
                     game_id,
-                    title,
-                    desc,
-                    rarity,
+                    ach_title,
+                    ach_desc,
+                    ach.rarity,
                     unlocked as i64,
                     unlocked_at,
-                    if *rarity == "Common" { 1 } else { (g.sessions / 2).max(1) },
-                    if *rarity == "Common" { 1 } else { 10 }
+                    if ach.rarity == "Common" { 1 } else { (g.sessions / 2).max(1) },
+                    if ach.rarity == "Common" { 1 } else { 10 }
                 ],
             )?;
         }
@@ -288,4 +348,75 @@ pub fn seed_if_empty(conn: &Connection) -> Result<(), rusqlite::Error> {
         set_setting(conn, "demo_mode", "on")?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::migrations;
+
+    fn memory_db() -> Connection {
+        let conn = Connection::open_in_memory().expect("memory db");
+        conn.pragma_update(None, "foreign_keys", "ON").expect("pragma");
+        migrations::run(&conn).expect("migrations");
+        conn
+    }
+
+    #[test]
+    fn seed_respects_locale_english() {
+        let conn = memory_db();
+        set_setting(&conn, "locale", "en").expect("set locale");
+        seed_if_empty(&conn).expect("seed");
+
+        let witcher_desc: String = conn
+            .query_row(
+                "SELECT description FROM games WHERE title = 'The Witcher 3: Wild Hunt'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("witcher desc");
+        assert!(witcher_desc.starts_with("An epic open-world adventure"));
+
+        let hogwarts_genre: String = conn
+            .query_row(
+                "SELECT genre FROM games WHERE title = 'Hogwarts Legacy'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("hogwarts genre");
+        assert_eq!(hogwarts_genre, "Adventure");
+
+        let first_ach: String = conn
+            .query_row(
+                "SELECT title FROM achievements WHERE title = 'First Steps'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("ach title");
+        assert_eq!(first_ach, "First Steps");
+    }
+
+    #[test]
+    fn seed_respects_locale_russian_by_default() {
+        let conn = memory_db();
+        seed_if_empty(&conn).expect("seed");
+
+        let witcher_desc: String = conn
+            .query_row(
+                "SELECT description FROM games WHERE title = 'The Witcher 3: Wild Hunt'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("witcher desc");
+        assert!(witcher_desc.starts_with("Эпическое приключение"));
+
+        let hogwarts_genre: String = conn
+            .query_row(
+                "SELECT genre FROM games WHERE title = 'Hogwarts Legacy'",
+                [],
+                |r| r.get(0),
+            )
+            .expect("hogwarts genre");
+        assert_eq!(hogwarts_genre, "Приключения");
+    }
 }

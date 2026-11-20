@@ -1,6 +1,6 @@
 [package]
 name = "game-space"
-version = "0.1.0"
+version = "0.2.1"
 description = "Game Space — единое пространство для всех игр"
 authors = ["Game Space"]
 edition = "2021"

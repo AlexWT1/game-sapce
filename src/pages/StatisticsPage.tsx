@@ -159,7 +159,7 @@ export function StatisticsPage() {
           </ul>
           {games.length > stats.mostPlayed.length && (
             <p className="mt-3 text-[12px] text-dim">
-              и ещё {games.length - stats.mostPlayed.length} игр…
+              {t("stats.andMore").replace("{n}", String(games.length - stats.mostPlayed.length))}
             </p>
           )}
         </section>

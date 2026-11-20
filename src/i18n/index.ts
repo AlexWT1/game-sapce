@@ -343,6 +343,10 @@ const RU = {
   "common.delete": "Удалить",
   "common.search": "Поиск",
   "common.nothing": "Пусто",
+  "game.notFound": "Игра не найдена",
+  "stats.andMore": "и ещё {n} игр…",
+  "dialog.selectExe": "Выберите исполняемый файл",
+  "dialog.cancelled": "Операция отменена",
 };
 
 type Dict = typeof RU;
@@ -692,6 +696,10 @@ const EN: Dict = {
   "common.delete": "Delete",
   "common.search": "Search",
   "common.nothing": "Nothing",
+  "game.notFound": "Game not found",
+  "stats.andMore": "and {n} more…",
+  "dialog.selectExe": "Select executable file",
+  "dialog.cancelled": "Operation cancelled",
 };
 
 export const dictionaries = { ru: RU, en: EN };

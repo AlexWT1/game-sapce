@@ -19,7 +19,7 @@
 
 [English](README.md) · [Русский](README-RU.md)
 
-![Главный экран Game Space](docs/screenshots/home.png)
+![Главный экран Game Space](docs/screenshots/ru/home.png)
 
 </div>
 
@@ -74,16 +74,16 @@ SQLite на вашем компьютере. Без аккаунтов и тел
 
 | Библиотека | Статистика |
 | --- | --- |
-| ![Библиотека](docs/screenshots/library.png) | ![Статистика](docs/screenshots/statistics.png) |
+| ![Библиотека](docs/screenshots/ru/library.png) | ![Статистика](docs/screenshots/ru/statistics.png) |
 | **Страница игры** | **Достижения** |
-| ![Страница игры](docs/screenshots/game-details.png) | ![Достижения](docs/screenshots/achievements.png) |
+| ![Страница игры](docs/screenshots/ru/game-details.png) | ![Достижения](docs/screenshots/ru/achievements.png) |
 | **Интеграции** | **Настройки** |
-| ![Магазин](docs/screenshots/shop.png) | ![Настройки](docs/screenshots/settings.png) |
+| ![Магазин](docs/screenshots/ru/shop.png) | ![Настройки](docs/screenshots/ru/settings.png) |
 
 **Игровой обзор (Recap)** — персональный отчёт об игровом месяце в духе Spotify Wrapped,
 с анимированными счётчиками и забавными фактами:
 
-![Игровой обзор](docs/screenshots/recap.png)
+![Игровой обзор](docs/screenshots/ru/recap.png)
 
 ## 🛠 Технологии
 

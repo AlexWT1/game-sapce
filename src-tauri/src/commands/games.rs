@@ -736,6 +736,8 @@ mod tests {
 
         // Installed — path refreshed when Steam reports a different one.
         let (installed, fresh) = verify_target(
+            false,
+            None,
             None,
             Some(r"E:\old\CS2"),
             Some(730),
@@ -747,6 +749,8 @@ mod tests {
 
         // Installed with an up-to-date path — no refresh needed.
         let (installed, fresh) = verify_target(
+            false,
+            None,
             None,
             Some(r"D:\Steam\steamapps\common\CS2"),
             Some(730),
@@ -757,13 +761,14 @@ mod tests {
         assert!(fresh.is_none());
 
         // Uninstalled — flagged but the row and its path stay untouched.
-        let (installed, fresh) = verify_target(None, Some(r"E:\old\CS2"), Some(440), Some(&apps))
-            .expect("verifiable");
+        let (installed, fresh) =
+            verify_target(false, None, None, Some(r"E:\old\CS2"), Some(440), Some(&apps))
+                .expect("verifiable");
         assert!(!installed);
         assert!(fresh.is_none());
 
         // Steam itself is missing — nothing to verify against, keep the flag.
-        assert!(verify_target(None, Some(r"E:\old\CS2"), Some(730), None).is_none());
+        assert!(verify_target(false, None, None, Some(r"E:\old\CS2"), Some(730), None).is_none());
     }
 
     #[test]
@@ -780,23 +785,27 @@ mod tests {
         let missing = dir.join("gone.exe").to_string_lossy().to_string();
 
         let (installed, fresh) =
-            verify_target(Some(&exe_str), Some(&dir_str), None, None).expect("verifiable");
+            verify_target(false, None, Some(&exe_str), Some(&dir_str), None, None)
+                .expect("verifiable");
         assert!(installed);
         assert!(fresh.is_none());
 
         let (installed, _) =
-            verify_target(Some(&missing), Some(&dir_str), None, None).expect("verifiable");
+            verify_target(false, None, Some(&missing), Some(&dir_str), None, None)
+                .expect("verifiable");
         assert!(!installed);
 
         // No executable — the install directory is the fallback check.
-        let (installed, _) = verify_target(None, Some(&dir_str), None, None).expect("verifiable");
+        let (installed, _) =
+            verify_target(false, None, None, Some(&dir_str), None, None).expect("verifiable");
         assert!(installed);
-        let (installed, _) = verify_target(None, Some(&missing), None, None).expect("verifiable");
+        let (installed, _) =
+            verify_target(false, None, None, Some(&missing), None, None).expect("verifiable");
         assert!(!installed);
 
         // Nothing to check against.
-        assert!(verify_target(None, None, None, None).is_none());
-        assert!(verify_target(Some(""), Some("  "), None, None).is_none());
+        assert!(verify_target(false, None, None, None, None, None).is_none());
+        assert!(verify_target(false, None, Some(""), Some("  "), None, None).is_none());
 
         let _ = std::fs::remove_dir_all(&dir);
     }

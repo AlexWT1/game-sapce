@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
             fontFamily: "system-ui, sans-serif",
           }}
         >
-          <h1 style={{ fontSize: 20, marginBottom: 12 }}>Ошибка отрисовки</h1>
+          <h1 style={{ fontSize: 20, marginBottom: 12 }}>Render Error</h1>
           <pre
             style={{
               whiteSpace: "pre-wrap",
@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
               cursor: "pointer",
             }}
           >
-            Сбросить и перезапустить
+            Reset & Restart
           </button>
         </div>
       );

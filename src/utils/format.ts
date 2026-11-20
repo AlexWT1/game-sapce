@@ -1,17 +1,19 @@
-/** Formats seconds → "1 мин 58 сек" / "3 ч" / "426 ч 17 мин". */
-export function formatPlaytime(seconds: number): string {
+/** Formats seconds → "1 мин 58 сек" / "3 h 17 min". */
+export function formatPlaytime(seconds: number, locale = "ru"): string {
   if (seconds < 0) seconds = 0;
-  if (seconds === 0) return "0 мин";
-  if (seconds < 60) return `${seconds} сек`;
+  const ru = isRu(locale);
+  if (seconds === 0) return ru ? "0 мин" : "0 min";
+  if (seconds < 60) return ru ? `${seconds} сек` : `${seconds}s`;
   if (seconds < 3600) {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return s === 0 ? `${m} мин` : `${m} мин ${s} сек`;
+    if (ru) return s === 0 ? `${m} мин` : `${m} мин ${s} сек`;
+    return s === 0 ? `${m} min` : `${m} min ${s}s`;
   }
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (m === 0) return `${h} ч`;
-  return `${h} ч ${m} мин`;
+  if (m === 0) return ru ? `${h} ч` : `${h} h`;
+  return ru ? `${h} ч ${m} мин` : `${h} h ${m} min`;
 }
 
 /** Compact H:MM:SS for live timers. */

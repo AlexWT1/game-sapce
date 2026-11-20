@@ -36,7 +36,7 @@ export function useAppEvents() {
         if (useSettingsStore.getState().notifySessionEnd) {
           useUiStore
             .getState()
-            .pushNotification("Сессия завершена", "Статистика обновлена");
+            .pushNotification(t["settings.notifySessionEnd"], t["stats.title"]);
         }
       }),
     );

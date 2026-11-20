@@ -20,6 +20,15 @@ import type {
   UpdateCheck,
 } from "@/types";
 
+import { useSettingsStore } from "@/stores/settingsStore";
+import { dictionaries } from "@/i18n";
+
+function t(key: keyof typeof dictionaries.ru): string {
+  const locale = useSettingsStore.getState().locale;
+  const dict = dictionaries[locale] ?? dictionaries.ru;
+  return dict[key] ?? dictionaries.ru[key] ?? key;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(cmd, args);
@@ -105,7 +114,7 @@ export const api = {
   windowClose: () => call<void>("window_close"),
   getAppInfo: () => call<AppInfo>("get_app_info"),
   selectGameExecutable: async () => {
-    const path = await openDialog({ multiple: false, title: "Выберите исполняемый файл" });
+    const path = await openDialog({ multiple: false, title: t("dialog.selectExe") });
     return typeof path === "string" ? path : null;
   },
   selectAnyFile: async () => {
@@ -116,11 +125,11 @@ export const api = {
     let target = path ?? null;
     if (!target) {
       const picked = await saveDialog({
-        title: "Экспорт данных",
+        title: t("settings.export"),
         defaultPath: "game-space-export.json",
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
-      if (!picked) throw new Error("Операция отменена");
+      if (!picked) throw new Error(t("dialog.cancelled"));
       target = picked;
     }
     return call<string>("export_data", { path: target });
@@ -129,11 +138,11 @@ export const api = {
     let source = path ?? null;
     if (!source) {
       const picked = await openDialog({
-        title: "Импорт данных",
+        title: t("settings.import"),
         multiple: false,
         filters: [{ name: "JSON", extensions: ["json"] }],
       });
-      if (!picked) throw new Error("Операция отменена");
+      if (!picked) throw new Error(t("dialog.cancelled"));
       source = picked;
     }
     return call<[number, number]>("import_data", { path: source });
