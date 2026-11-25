@@ -60,7 +60,8 @@ on your machine. No accounts, no telemetry.
 
 ### 🧩 Integrations
 - Steam (connected) — library sync, avatar and profile info
-- Epic Games & GOG — planned
+- Epic Games (connected) — installed games sync (Launcher v1 & v2), playtime, covers and `com.epicgames.launcher://` launch
+- GOG — planned
 
 ### 🖥 Desktop experience
 - Frameless window with custom controls, system tray, launch on startup
@@ -122,6 +123,7 @@ Installers are written to `src-tauri/target/release/bundle/`.
 ### Optional integrations
 - **IGDB metadata** — free [Twitch Developer Console](https://dev.twitch.tv/console) credentials (Client-ID / Client-Secret), set on the Settings page
 - **Steam sync** — a free [Steam Web API](https://steamcommunity.com/dev/apikey) key and your profile URL, on the Shop page
+- **Epic Games sync** — OAuth authorization code on the Shop page (imports installed Epic Games titles, playtime and covers)
 
 ## 📁 Project structure
 
