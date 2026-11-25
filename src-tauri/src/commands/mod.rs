@@ -1,4 +1,5 @@
 pub mod achievements;
+pub mod epic;
 pub mod games;
 pub mod igdb;
 pub mod launch;

@@ -202,6 +202,21 @@ const RU = {
   "shop.title": "Магазин",
   "shop.soon": "Скоро",
   "shop.epic": "Epic Games",
+  "shop.epic.hint":
+    "Подключите аккаунт, чтобы установленные игры Epic Games появлялись в библиотеке с обложками и запускались через лаунчер.",
+  "shop.epic.connect": "Подключить Epic Games",
+  "shop.epic.library": "В библиотеке появятся только установленные игры Epic Games",
+  "shop.epic.openLogin": "Открыть страницу входа Epic Games",
+  "shop.epic.authCode": "Код авторизации (authorizationCode)",
+  "shop.epic.authCodeHint":
+    "Войдите в браузере, скопируйте значение authorizationCode (или весь JSON целиком) и вставьте сюда.",
+  "shop.epic.authCodePlaceholder": "Вставьте authorizationCode или JSON...",
+  "shop.epic.linked": "Аккаунт Epic Games подключён",
+  "shop.epic.unlinked": "Аккаунт Epic Games отключён",
+  "shop.epic.unlinkConfirm": "Отключить Epic Games?",
+  "shop.epic.unlinkConfirmBody": "Игры останутся в библиотеке, синхронизация остановится.",
+  "shop.epic.syncing": "Синхронизация Epic Games...",
+  "shop.epic.syncDone": "Epic Games синхронизирован",
   "shop.gog": "GOG",
   "shop.steam.title": "Steam",
   "shop.steam.hint":
@@ -563,6 +578,21 @@ const EN: Dict = {
   "shop.title": "Store",
   "shop.soon": "Coming soon",
   "shop.epic": "Epic Games",
+  "shop.epic.hint":
+    "Connect your account so installed Epic Games titles appear in your library with covers and launch cleanly.",
+  "shop.epic.connect": "Connect Epic Games",
+  "shop.epic.library": "Only installed Epic Games titles will appear in your Library",
+  "shop.epic.openLogin": "Open Epic Games login page",
+  "shop.epic.authCode": "Authorization code",
+  "shop.epic.authCodeHint":
+    "Sign in via browser, copy the authorizationCode value (or the entire JSON) and paste it here.",
+  "shop.epic.authCodePlaceholder": "Paste authorizationCode or JSON...",
+  "shop.epic.linked": "Epic Games account connected",
+  "shop.epic.unlinked": "Epic Games account disconnected",
+  "shop.epic.unlinkConfirm": "Disconnect Epic Games?",
+  "shop.epic.unlinkConfirmBody": "Games stay in your library, syncing stops.",
+  "shop.epic.syncing": "Syncing Epic Games...",
+  "shop.epic.syncDone": "Epic Games synced",
   "shop.gog": "GOG",
   "shop.steam.title": "Steam",
   "shop.steam.hint":

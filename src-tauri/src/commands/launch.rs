@@ -84,18 +84,41 @@ pub fn launch_game(
         let path = crate::game::launcher::validate_executable(exe)?;
         crate::game::launcher::spawn_game(&path, &[])?.id()
     } else {
-        // Steam launch via steam:// protocol.
-        let appid: i64 = state.db.with(|conn| {
+        // Check Epic Games protocol first if linked in `epic_games`, otherwise Steam.
+        let epic_entry: Option<(String, String, String)> = state.db.with(|conn| {
             conn.query_row(
-                "SELECT appid FROM steam_games WHERE game_id = ?1",
+                "SELECT app_name, catalog_item_id, namespace FROM epic_games WHERE game_id = ?1",
                 [game_id],
-                |r| r.get::<_, i64>(0),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .optional()
             .map_err(AppError::Database)
-        })?.ok_or_else(|| AppError::NotFound("Steam appid not found for this game".into()))?;
-        crate::services::opener::open_url(&format!("steam://rungameid/{appid}"))?;
-        0u32
+        })?;
+
+        if let Some((app_name, catalog_item_id, namespace)) = epic_entry {
+            let launch_id = if !namespace.is_empty() && !catalog_item_id.is_empty() {
+                format!("{namespace}%3A{catalog_item_id}%3A{app_name}")
+            } else {
+                app_name
+            };
+            crate::services::opener::open_url(&format!(
+                "com.epicgames.launcher://apps/{launch_id}?action=launch&silent=true"
+            ))?;
+            0u32
+        } else {
+            // Steam launch via steam:// protocol.
+            let appid: i64 = state.db.with(|conn| {
+                conn.query_row(
+                    "SELECT appid FROM steam_games WHERE game_id = ?1",
+                    [game_id],
+                    |r| r.get::<_, i64>(0),
+                )
+                .optional()
+                .map_err(AppError::Database)
+            })?.ok_or_else(|| AppError::NotFound("Steam appid not found for this game".into()))?;
+            crate::services::opener::open_url(&format!("steam://rungameid/{appid}"))?;
+            0u32
+        }
     };
     let now = chrono::Utc::now().to_rfc3339();
 

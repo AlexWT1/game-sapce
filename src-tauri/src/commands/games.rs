@@ -539,7 +539,7 @@ pub fn verify_installations_impl(
 }
 
 fn run_install_verification(state: &AppState) -> AppResult<Vec<InstallStatusChange>> {
-    if state.steam_syncing.load(Ordering::SeqCst) {
+    if state.steam_syncing.load(Ordering::SeqCst) || state.epic_syncing.load(Ordering::SeqCst) {
         return Ok(Vec::new());
     }
 
@@ -553,47 +553,79 @@ fn run_install_verification(state: &AppState) -> AppResult<Vec<InstallStatusChan
         log::debug!("Install verification: Steam not found, Steam-linked games skipped");
     }
 
+    let epic_apps: Option<HashMap<String, String>> =
+        crate::services::epic::manifest::scan_installed_games().map(|apps| {
+            apps.into_iter()
+                .map(|(k, v)| (k, v.install_location))
+                .collect()
+        });
+
     let running: HashSet<i64> = state
         .active
         .lock()
         .map(|m| m.keys().copied().collect())
         .unwrap_or_default();
 
-    let rows: Vec<(i64, Option<String>, Option<String>, bool, Option<u32>, bool, Option<String>)> =
-        state.db.with(|conn| {
-            let mut stmt = conn.prepare(
-                "SELECT g.id, g.executable_path, g.install_path, g.is_installed, sg.appid,
-                        g.use_launcher, g.launcher_path
-                 FROM games g LEFT JOIN steam_games sg ON sg.game_id = g.id",
-            )?;
-            let rows = stmt.query_map([], |r| {
-                Ok((
-                    r.get::<_, i64>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                    r.get::<_, i64>(3)? != 0,
-                    r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
-                    r.get::<_, i64>(5)? != 0,
-                    r.get::<_, Option<String>>(6)?,
-                ))
-            })?;
-            rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    type VerifyRow = (
+        i64,
+        Option<String>,
+        Option<String>,
+        bool,
+        Option<u32>,
+        Option<String>,
+        bool,
+        Option<String>,
+    );
+    let rows: Vec<VerifyRow> = state.db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT g.id, g.executable_path, g.install_path, g.is_installed, sg.appid,
+                    eg.app_name, g.use_launcher, g.launcher_path
+             FROM games g
+             LEFT JOIN steam_games sg ON sg.game_id = g.id
+             LEFT JOIN epic_games eg ON eg.game_id = g.id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, i64>(3)? != 0,
+                r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
+                r.get::<_, Option<String>>(5)?,
+                r.get::<_, i64>(6)? != 0,
+                r.get::<_, Option<String>>(7)?,
+            ))
         })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    })?;
 
     // Pure filesystem reads — computed before touching the database.
     let mut plan: Vec<(i64, bool, bool, Option<String>)> = Vec::new();
-    for (id, exe, install_path, is_installed, appid, use_launcher, launcher_path) in rows {
+    for (id, exe, install_path, is_installed, appid, epic_app, use_launcher, launcher_path) in rows
+    {
         if running.contains(&id) {
             continue;
         }
-        let Some((verified, fresh_path)) = verify_target(
-            use_launcher,
-            launcher_path.as_deref(),
-            exe.as_deref(),
-            install_path.as_deref(),
-            appid,
-            steam_apps.as_ref(),
-        ) else {
+        let resolved = if let Some(app_name) = epic_app.as_deref() {
+            epic_apps.as_ref().map(|apps| {
+                let installed = apps.contains_key(app_name);
+                let fresh_path = apps
+                    .get(app_name)
+                    .cloned()
+                    .filter(|p| Some(p.as_str()) != install_path.as_deref());
+                (installed, fresh_path)
+            })
+        } else {
+            verify_target(
+                use_launcher,
+                launcher_path.as_deref(),
+                exe.as_deref(),
+                install_path.as_deref(),
+                appid,
+                steam_apps.as_ref(),
+            )
+        };
+        let Some((verified, fresh_path)) = resolved else {
             continue;
         };
         if verified != is_installed || fresh_path.is_some() {
