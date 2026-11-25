@@ -1,3 +1,4 @@
+pub mod epic;
 pub mod export;
 pub mod igdb;
 pub mod opener;

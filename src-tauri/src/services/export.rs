@@ -50,7 +50,10 @@ fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         launch_count: row.get(22)?,
         use_launcher: row.get::<_, i64>(23)? != 0,
         launcher_path: row.get(24)?,
-        launcher_args: row.get(25).ok().flatten(),
+        // `launcher_args` is a NOT NULL column; an empty value means "no args".
+        launcher_args: row
+            .get::<_, Option<String>>(25)?
+            .filter(|a| !a.is_empty()),
     })
 }
 
@@ -190,7 +193,8 @@ pub fn import(conn: &Connection, json: &str) -> AppResult<(usize, usize)> {
                 game.launch_count,
                 game.use_launcher as i64,
                 game.launcher_path,
-                game.launcher_args
+                // The column is NOT NULL — an empty string means "no args".
+                game.launcher_args.as_deref().unwrap_or("")
             ],
         )
         .map_err(AppError::Database)?;

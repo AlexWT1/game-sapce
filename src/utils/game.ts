@@ -4,7 +4,7 @@ import type { Game } from "@/types";
  *  Launcher-based games are launchable as long as the launcher file is present. */
 export function canLaunch(game: Game): boolean {
   if (game.useLauncher) return Boolean(game.launcherPath);
-  return Boolean(game.executablePath) || game.source === "Steam";
+  return Boolean(game.executablePath) || game.source === "Steam" || game.source === "Epic";
 }
 
 /** Steam-linked games can be (re)installed through the Steam client. */

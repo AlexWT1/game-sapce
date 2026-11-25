@@ -15,6 +15,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "005_launcher_args",
         include_str!("../../../migrations/005_launcher_args.sql"),
     ),
+    ("006_epic", include_str!("../../../migrations/006_epic.sql")),
 ];
 
 /// Applies all pending migrations inside a transaction-ish sequence.

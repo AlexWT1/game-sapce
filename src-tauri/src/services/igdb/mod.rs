@@ -132,9 +132,10 @@ impl IgdbClient {
             .await
             .map_err(|e| AppError::Other(format!("Twitch OAuth failed: {e}")))?;
         if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
             return Err(AppError::Other(format!(
-                "Twitch OAuth failed: HTTP {}",
-                response.status()
+                "Twitch OAuth failed: HTTP {status} — {text}"
             )));
         }
         let token: TokenResponse = response
@@ -159,23 +160,33 @@ impl IgdbClient {
         Ok(token.access_token)
     }
 
+    /// Deletes the cached access token so the next call mints a fresh one.
+    pub fn invalidate_token(&self, state: &State<'_, AppState>) -> AppResult<()> {
+        state.db.with(|conn| {
+            for key in [TOKEN_KEY, TOKEN_EXPIRY_KEY] {
+                conn.execute("DELETE FROM settings WHERE key = ?1", rusqlite::params![key])?;
+            }
+            Ok(())
+        })
+    }
+
     /// Runs an Apicalypse query against the IGDB games endpoint.
+    ///
+    /// A 401 drops the cached token and is retried once with a freshly minted
+    /// one — a cached token may be stale after credentials were replaced or
+    /// revoked on Twitch side.
     pub async fn query(
         &self,
         state: &State<'_, AppState>,
         body: String,
     ) -> AppResult<Vec<IgdbGame>> {
-        let token = self.access_token(state).await?;
-        let response = self
-            .client
-            .post(API_URL)
-            .header("Client-ID", &self.client_id)
-            .bearer_auth(token)
-            .header("Accept", "application/json")
-            .body(body)
-            .send()
-            .await
-            .map_err(|e| AppError::Other(format!("IGDB request failed: {e}")))?;
+        let mut token = self.access_token(state).await?;
+        let mut response = self.send_query(&token, &body).await?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            self.invalidate_token(state)?;
+            token = self.access_token(state).await?;
+            response = self.send_query(&token, &body).await?;
+        }
 
         let status = response.status();
         let text = response
@@ -183,12 +194,36 @@ impl IgdbClient {
             .await
             .map_err(|e| AppError::Other(format!("IGDB response read failed: {e}")))?;
         if !status.is_success() {
+            if status == reqwest::StatusCode::UNAUTHORIZED {
+                return Err(AppError::validation(
+                    "IGDB вернул 401 после обновления токена. Проверьте Client-ID и \
+                     Client-Secret в настройках: ключи выдаёт Twitch Developer Console, \
+                     и приложение должно быть зарегистрировано в IGDB.",
+                ));
+            }
             return Err(AppError::Other(format!(
                 "IGDB request failed: HTTP {status} — {text}"
             )));
         }
         serde_json::from_str(&text)
             .map_err(|e| AppError::Other(format!("IGDB bad response: {e}")))
+    }
+
+    /// Sends one authenticated request; returns the raw response.
+    async fn send_query(
+        &self,
+        token: &str,
+        body: &str,
+    ) -> AppResult<reqwest::Response> {
+        self.client
+            .post(API_URL)
+            .header("Client-ID", &self.client_id)
+            .bearer_auth(token)
+            .header("Accept", "application/json")
+            .body(body.to_owned())
+            .send()
+            .await
+            .map_err(|e| AppError::Other(format!("IGDB request failed: {e}")))
     }
 }
 

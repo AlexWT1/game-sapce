@@ -192,6 +192,9 @@ pub fn search_all(state: State<'_, AppState>, query: String) -> AppResult<Search
 
 #[tauri::command]
 pub fn open_path(app: AppHandle, path: String) -> AppResult<()> {
+    if path.starts_with("http://") || path.starts_with("https://") {
+        return crate::services::opener::open_url(&path);
+    }
     #[cfg(target_os = "linux")]
     {
         let _ = std::process::Command::new("xdg-open")

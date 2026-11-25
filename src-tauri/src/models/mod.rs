@@ -201,6 +201,8 @@ pub struct SteamSyncResult {
     pub updated: i64,
 }
 
+pub type EpicSyncResult = SteamSyncResult;
+
 /// A game whose `is_installed` flag flipped during a verification pass.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

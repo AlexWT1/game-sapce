@@ -91,12 +91,21 @@ export const api = {
     call<SettingsMap>("update_settings", { settings }),
   getSetting: (key: string) => call<string | null>("get_setting", { key }),
 
+  // player profile
+  getPlayerName: () => call<string | null>("get_player_name"),
+  setPlayerName: (name: string) => call<string>("set_player_name", { name }),
+
   // store integrations
   getStoreAccount: () => call<StoreAccount | null>("get_store_account"),
   linkSteamAccount: (apiKey: string, profileUrl: string) =>
     call<StoreAccount>("link_steam_account", { apiKey, profileUrl }),
   unlinkSteamAccount: () => call<void>("unlink_steam_account"),
   syncSteamLibrary: () => call<SteamSyncResult>("sync_steam_library"),
+  getEpicAccount: () => call<StoreAccount | null>("get_epic_account"),
+  linkEpicAccount: (authCode: string) =>
+    call<StoreAccount>("link_epic_account", { authCode }),
+  unlinkEpicAccount: () => call<void>("unlink_epic_account"),
+  syncEpicLibrary: () => call<SteamSyncResult>("sync_epic_library"),
 
   // igdb metadata
   igdbSearchGames: (query: string, limit?: number) =>

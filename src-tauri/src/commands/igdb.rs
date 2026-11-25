@@ -55,6 +55,17 @@ fn to_meta(game: igdb::IgdbGame) -> IgdbGameMeta {
     }
 }
 
+/// Searches IGDB by title and returns the best match, if IGDB is configured.
+pub(crate) async fn search_first(state: &State<'_, AppState>, query: &str) -> Option<IgdbGameMeta> {
+    let query = query.trim();
+    if query.is_empty() {
+        return None;
+    }
+    let client = IgdbClient::from_settings(state).ok()?;
+    let games = client.query(state, igdb::search_body(query, 1)).await.ok()?;
+    games.into_iter().next().map(to_meta)
+}
+
 /// Searches IGDB by title and returns ready-to-use metadata for the form.
 #[tauri::command]
 pub async fn igdb_search_games(

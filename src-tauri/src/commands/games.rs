@@ -44,7 +44,10 @@ pub fn map_game(row: &rusqlite::Row<'_>) -> rusqlite::Result<Game> {
         launch_count: row.get(22)?,
         use_launcher: row.get::<_, i64>(23)? != 0,
         launcher_path: row.get(24)?,
-        launcher_args: row.get(25).ok().flatten(),
+        // `launcher_args` is a NOT NULL column; an empty value means "no args".
+        launcher_args: row
+            .get::<_, Option<String>>(25)?
+            .filter(|a| !a.is_empty()),
     })
 }
 
@@ -176,7 +179,8 @@ pub fn create_game(
                 now,
                 use_launcher as i64,
                 launcher,
-                launcher_args,
+                // The column is NOT NULL — an empty string means "no args".
+                launcher_args.as_deref().unwrap_or(""),
             ],
         )?;
         let id = conn.last_insert_rowid();
@@ -315,7 +319,8 @@ pub fn update_game(
                 now,
                 game.use_launcher as i64,
                 game.launcher_path,
-                game.launcher_args,
+                // The column is NOT NULL — an empty string means "no args".
+                game.launcher_args.as_deref().unwrap_or(""),
                 id
             ],
         )?;
@@ -534,7 +539,7 @@ pub fn verify_installations_impl(
 }
 
 fn run_install_verification(state: &AppState) -> AppResult<Vec<InstallStatusChange>> {
-    if state.steam_syncing.load(Ordering::SeqCst) {
+    if state.steam_syncing.load(Ordering::SeqCst) || state.epic_syncing.load(Ordering::SeqCst) {
         return Ok(Vec::new());
     }
 
@@ -548,47 +553,79 @@ fn run_install_verification(state: &AppState) -> AppResult<Vec<InstallStatusChan
         log::debug!("Install verification: Steam not found, Steam-linked games skipped");
     }
 
+    let epic_apps: Option<HashMap<String, String>> =
+        crate::services::epic::manifest::scan_installed_games().map(|apps| {
+            apps.into_iter()
+                .map(|(k, v)| (k, v.install_location))
+                .collect()
+        });
+
     let running: HashSet<i64> = state
         .active
         .lock()
         .map(|m| m.keys().copied().collect())
         .unwrap_or_default();
 
-    let rows: Vec<(i64, Option<String>, Option<String>, bool, Option<u32>, bool, Option<String>)> =
-        state.db.with(|conn| {
-            let mut stmt = conn.prepare(
-                "SELECT g.id, g.executable_path, g.install_path, g.is_installed, sg.appid,
-                        g.use_launcher, g.launcher_path
-                 FROM games g LEFT JOIN steam_games sg ON sg.game_id = g.id",
-            )?;
-            let rows = stmt.query_map([], |r| {
-                Ok((
-                    r.get::<_, i64>(0)?,
-                    r.get::<_, Option<String>>(1)?,
-                    r.get::<_, Option<String>>(2)?,
-                    r.get::<_, i64>(3)? != 0,
-                    r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
-                    r.get::<_, i64>(5)? != 0,
-                    r.get::<_, Option<String>>(6)?,
-                ))
-            })?;
-            rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    type VerifyRow = (
+        i64,
+        Option<String>,
+        Option<String>,
+        bool,
+        Option<u32>,
+        Option<String>,
+        bool,
+        Option<String>,
+    );
+    let rows: Vec<VerifyRow> = state.db.with(|conn| {
+        let mut stmt = conn.prepare(
+            "SELECT g.id, g.executable_path, g.install_path, g.is_installed, sg.appid,
+                    eg.app_name, g.use_launcher, g.launcher_path
+             FROM games g
+             LEFT JOIN steam_games sg ON sg.game_id = g.id
+             LEFT JOIN epic_games eg ON eg.game_id = g.id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, Option<String>>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, i64>(3)? != 0,
+                r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
+                r.get::<_, Option<String>>(5)?,
+                r.get::<_, i64>(6)? != 0,
+                r.get::<_, Option<String>>(7)?,
+            ))
         })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(Into::into)
+    })?;
 
     // Pure filesystem reads — computed before touching the database.
     let mut plan: Vec<(i64, bool, bool, Option<String>)> = Vec::new();
-    for (id, exe, install_path, is_installed, appid, use_launcher, launcher_path) in rows {
+    for (id, exe, install_path, is_installed, appid, epic_app, use_launcher, launcher_path) in rows
+    {
         if running.contains(&id) {
             continue;
         }
-        let Some((verified, fresh_path)) = verify_target(
-            use_launcher,
-            launcher_path.as_deref(),
-            exe.as_deref(),
-            install_path.as_deref(),
-            appid,
-            steam_apps.as_ref(),
-        ) else {
+        let resolved = if let Some(app_name) = epic_app.as_deref() {
+            epic_apps.as_ref().map(|apps| {
+                let installed = apps.contains_key(app_name);
+                let fresh_path = apps
+                    .get(app_name)
+                    .cloned()
+                    .filter(|p| Some(p.as_str()) != install_path.as_deref());
+                (installed, fresh_path)
+            })
+        } else {
+            verify_target(
+                use_launcher,
+                launcher_path.as_deref(),
+                exe.as_deref(),
+                install_path.as_deref(),
+                appid,
+                steam_apps.as_ref(),
+            )
+        };
+        let Some((verified, fresh_path)) = resolved else {
             continue;
         };
         if verified != is_installed || fresh_path.is_some() {
@@ -808,5 +845,30 @@ mod tests {
         assert!(verify_target(false, None, Some(""), Some("  "), None, None).is_none());
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn launcher_args_empty_stays_within_not_null_column() {
+        let conn = memory_db();
+
+        // Same binds the create/update commands use for "no launcher args":
+        // an empty string must be stored instead of an explicit NULL.
+        let no_args: Option<String> = None;
+        conn.execute(
+            "INSERT INTO games (title, created_at, updated_at, launcher_args)
+             VALUES (?1, 't', 't', ?2)",
+            rusqlite::params!["Soulstone", no_args.as_deref().unwrap_or("")],
+        )
+        .expect("empty launcher_args must not violate NOT NULL");
+
+        let id: i64 = conn.last_insert_rowid();
+        let stored: String = conn
+            .query_row("SELECT launcher_args FROM games WHERE id = ?1", [id], |r| r.get(0))
+            .expect("stored args");
+        assert_eq!(stored, "");
+
+        // The model keeps the "no args" semantics as None.
+        let game = get_game_conn(&conn, id).expect("game");
+        assert_eq!(game.launcher_args, None);
     }
 }

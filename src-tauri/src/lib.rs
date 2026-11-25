@@ -23,6 +23,8 @@ pub struct AppState {
     pub tray_session_item: Mutex<Option<MenuItem<tauri::Wry>>>,
     /// Guards `sync_steam_library` against a second overlapping run.
     pub steam_syncing: Arc<AtomicBool>,
+    /// Guards `sync_epic_library` against a second overlapping run.
+    pub epic_syncing: Arc<AtomicBool>,
     /// Guards `verify_installations` against a second overlapping run.
     pub install_verifying: Arc<AtomicBool>,
     /// Guards the launcher update download against a second overlapping run.
@@ -62,6 +64,7 @@ pub fn run() {
                 active: Default::default(),
                 tray_session_item: Mutex::new(None),
                 steam_syncing: Arc::new(AtomicBool::new(false)),
+                epic_syncing: Arc::new(AtomicBool::new(false)),
                 install_verifying: Arc::new(AtomicBool::new(false)),
                 update_downloading: Arc::new(AtomicBool::new(false)),
                 update_cancel: Arc::new(AtomicBool::new(false)),
@@ -127,6 +130,10 @@ pub fn run() {
             commands::store::link_steam_account,
             commands::store::unlink_steam_account,
             commands::store::sync_steam_library,
+            commands::epic::get_epic_account,
+            commands::epic::link_epic_account,
+            commands::epic::unlink_epic_account,
+            commands::epic::sync_epic_library,
             commands::achievements::get_achievements,
             commands::achievements::unlock_achievement,
             commands::igdb::igdb_search_games,
@@ -134,6 +141,8 @@ pub fn run() {
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_setting,
+            commands::settings::get_player_name,
+            commands::settings::set_player_name,
             commands::system::window_minimize,
             commands::system::window_toggle_maximize,
             commands::system::window_close,

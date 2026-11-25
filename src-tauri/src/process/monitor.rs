@@ -40,9 +40,9 @@ pub fn kill_pid(pid: u32) -> bool {
     }
 }
 
-/// Sessions started without a known pid (via `steam://`) stay alive while a process
+/// Sessions started without a known pid (via `steam://` or Epic) stay alive while a process
 /// runs from the install folder, or during the boot grace period.
-const LAUNCH_GRACE_SECS: i64 = 30;
+const LAUNCH_GRACE_SECS: i64 = 90;
 
 fn normalize_path(path: &str) -> String {
     path.trim().trim_end_matches(['/', '\\']).to_lowercase()

@@ -202,6 +202,21 @@ const RU = {
   "shop.title": "Магазин",
   "shop.soon": "Скоро",
   "shop.epic": "Epic Games",
+  "shop.epic.hint":
+    "Подключите аккаунт, чтобы установленные игры Epic Games появлялись в библиотеке с обложками и запускались через лаунчер.",
+  "shop.epic.connect": "Подключить Epic Games",
+  "shop.epic.library": "В библиотеке появятся только установленные игры Epic Games",
+  "shop.epic.openLogin": "Открыть страницу входа Epic Games",
+  "shop.epic.authCode": "Код авторизации (authorizationCode)",
+  "shop.epic.authCodeHint":
+    "Войдите в браузере, скопируйте значение authorizationCode (или весь JSON целиком) и вставьте сюда.",
+  "shop.epic.authCodePlaceholder": "Вставьте authorizationCode или JSON...",
+  "shop.epic.linked": "Аккаунт Epic Games подключён",
+  "shop.epic.unlinked": "Аккаунт Epic Games отключён",
+  "shop.epic.unlinkConfirm": "Отключить Epic Games?",
+  "shop.epic.unlinkConfirmBody": "Игры останутся в библиотеке, синхронизация остановится.",
+  "shop.epic.syncing": "Синхронизация Epic Games...",
+  "shop.epic.syncDone": "Epic Games синхронизирован",
   "shop.gog": "GOG",
   "shop.steam.title": "Steam",
   "shop.steam.hint":
@@ -297,6 +312,10 @@ const RU = {
   "onboarding.welcome": "Добро пожаловать в Game Space",
   "onboarding.welcomeHint":
     "Единое пространство для всех игр, твоего времени, достижений и статистики.",
+  "onboarding.nameTitle": "Как к вам обращаться?",
+  "onboarding.nameHint":
+    "Введите ник — он сохранится в базе данных и появится в шапке приложения.",
+  "onboarding.namePlaceholder": "Ваш ник",
   "onboarding.addFirst": "Добавить первую игру",
   "onboarding.addFirstHint":
     "Выбери executable-файл игры — остальное Game Space подтянет сам. Можно пропустить и добавить позже.",
@@ -306,6 +325,14 @@ const RU = {
   "onboarding.back": "Назад",
   "onboarding.start": "Начать",
   "onboarding.step": "Шаг",
+
+  "profile.approachTitle": "Как к вам обращаться?",
+  "profile.approachHint": "Ник сохраняется в базе данных и отображается в приложении.",
+  "profile.nameLabel": "Ник",
+  "profile.namePlaceholder": "Например, Lusfan",
+  "profile.nameErrorEmpty": "Введите ник",
+  "profile.nameErrorTooLong": "Не больше 32 символов",
+  "profile.nameErrorSave": "Не удалось сохранить ник",
 
   "command.placeholder": "Введи команду или название игры...",
   "command.games": "Игры",
@@ -555,6 +582,21 @@ const EN: Dict = {
   "shop.title": "Store",
   "shop.soon": "Coming soon",
   "shop.epic": "Epic Games",
+  "shop.epic.hint":
+    "Connect your account so installed Epic Games titles appear in your library with covers and launch cleanly.",
+  "shop.epic.connect": "Connect Epic Games",
+  "shop.epic.library": "Only installed Epic Games titles will appear in your Library",
+  "shop.epic.openLogin": "Open Epic Games login page",
+  "shop.epic.authCode": "Authorization code",
+  "shop.epic.authCodeHint":
+    "Sign in via browser, copy the authorizationCode value (or the entire JSON) and paste it here.",
+  "shop.epic.authCodePlaceholder": "Paste authorizationCode or JSON...",
+  "shop.epic.linked": "Epic Games account connected",
+  "shop.epic.unlinked": "Epic Games account disconnected",
+  "shop.epic.unlinkConfirm": "Disconnect Epic Games?",
+  "shop.epic.unlinkConfirmBody": "Games stay in your library, syncing stops.",
+  "shop.epic.syncing": "Syncing Epic Games...",
+  "shop.epic.syncDone": "Epic Games synced",
   "shop.gog": "GOG",
   "shop.steam.title": "Steam",
   "shop.steam.hint":
@@ -650,6 +692,10 @@ const EN: Dict = {
   "onboarding.welcome": "Welcome to Game Space",
   "onboarding.welcomeHint":
     "One place for all your games, time, achievements and stats.",
+  "onboarding.nameTitle": "What should we call you?",
+  "onboarding.nameHint":
+    "Type a nickname — it is saved to your database and shown in the app top bar.",
+  "onboarding.namePlaceholder": "Your nickname",
   "onboarding.addFirst": "Add your first game",
   "onboarding.addFirstHint":
     "Pick the game's executable file — Game Space will handle the rest. You can skip and add games later.",
@@ -659,6 +705,14 @@ const EN: Dict = {
   "onboarding.back": "Back",
   "onboarding.start": "Start",
   "onboarding.step": "Step",
+
+  "profile.approachTitle": "What should we call you?",
+  "profile.approachHint": "The nickname is stored in the database and shown across the app.",
+  "profile.nameLabel": "Nickname",
+  "profile.namePlaceholder": "e.g. Lusfan",
+  "profile.nameErrorEmpty": "Type a nickname",
+  "profile.nameErrorTooLong": "Max 32 characters",
+  "profile.nameErrorSave": "Failed to save nickname",
 
   "command.placeholder": "Type a command or game title...",
   "command.games": "Games",
